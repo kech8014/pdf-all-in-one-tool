@@ -31,7 +31,6 @@ export async function stageImageForPlacement(ctl: WorkspaceController, bytes: Ui
     const blobId = await ctl.storeImage(img.bytes);
     const previewUrl = URL.createObjectURL(new Blob([img.bytes as BlobPart], { type: img.mime }));
     ui.set({ pendingImage: { blobId, mime: img.mime, width: img.width, height: img.height, signature, previewUrl }, tool: 'image', selectedAnns: null });
-    ctl.notify('info', signature ? 'Click where the signature should go (or drag to size it).' : 'Click on a page to place the image (or drag to size it).');
   } catch (err) {
     ctl.notify('error', 'That image could not be used.', err instanceof Error ? err.message : String(err));
   }

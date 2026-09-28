@@ -171,6 +171,29 @@ describe('export', () => {
   });
 });
 
+describe('robustness', () => {
+  it('isolates a source page that leaves its graphics state modified', async () => {
+    // A page whose content ends with an un-restored 3x scale: without isolation every
+    // annotation drawn after it would be scaled and misplaced.
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([612, 792]);
+    const { concatTransformationMatrix } = await import('@cantoo/pdf-lib');
+    page.pushOperators(concatTransformationMatrix(3, 0, 0, 3, 0, 0));
+    const { ctl } = newController();
+    await ctl.addFiles([{ name: 'messy.pdf', bytes: await doc.save() }]);
+    ctl.addAnnotation(ctl.state.pages[0].id, { id: newId('an'), type: 'shape', shape: 'rect', rect: { x: 100, y: 100, w: 50, h: 50 }, strokeColor: '#ff0000', strokeWidth: 2, fillColor: null, opacity: 1 });
+    const out = (await ctl.exportPdf())!;
+    const content = await pageContent(out, 0);
+    const scale = content.indexOf('3 0 0 3 0 0 cm');
+    const restore = content.indexOf('Q', scale);
+    const ours = content.indexOf('100 100 50 50 re');
+    expect(content.trimStart().startsWith('q')).toBe(true);
+    expect(scale).toBeGreaterThan(0);
+    expect(restore).toBeGreaterThan(scale);
+    expect(ours).toBeGreaterThan(restore);
+  });
+});
+
 describe('text layout', () => {
   it('wraps words, breaks long words and aligns lines', () => {
     const l = layoutText({ text: 'one two three four five six seven', fontFamily: 'helvetica', bold: false, italic: false, fontSize: 12, align: 'left', boxWidth: 80 });

@@ -296,7 +296,13 @@ function Toasts() {
       );
     }
   }, [notices, ctl]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    const map = timers.current;
+    return () => {
+      map.forEach(clearTimeout);
+      map.clear();
+    };
+  }, []);
   const visible = notices.slice(-3);
   return (
     <div className="toasts" role="status" aria-live="polite">

@@ -133,3 +133,51 @@ export async function photoPdf(label = 'P'): Promise<Uint8Array> {
 export async function bigPdf(label: string, n: number): Promise<Uint8Array> {
   return labelledPdf(label, n, { sizes: [[612, 792], [595, 842], [792, 612]] });
 }
+
+/** Minimal uncompressed RGB TIFF; several frames make a multi-page TIFF. */
+export function tiffBytes(frames: { w: number; h: number; color: [number, number, number] }[]): Uint8Array {
+  const parts: number[] = [];
+  const u16 = (v: number) => parts.push(v & 255, (v >> 8) & 255);
+  const u32 = (v: number) => parts.push(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255);
+  // header
+  parts.push(0x49, 0x49);
+  u16(42);
+  u32(8);
+  let offset = 8;
+  frames.forEach((f, idx) => {
+    const entries = 11;
+    const ifdSize = 2 + entries * 12 + 4;
+    const bpsOffset = offset + ifdSize;
+    const dataOffset = bpsOffset + 6;
+    const dataLen = f.w * f.h * 3;
+    const next = idx === frames.length - 1 ? 0 : dataOffset + dataLen;
+    const tag = (t: number, type: number, count: number, value: number) => {
+      u16(t);
+      u16(type);
+      u32(count);
+      if (type === 3 && count === 1) {
+        u16(value);
+        u16(0);
+      } else u32(value);
+    };
+    u16(entries);
+    tag(256, 4, 1, f.w); // width
+    tag(257, 4, 1, f.h); // height
+    tag(258, 3, 3, bpsOffset); // bits per sample -> offset
+    tag(259, 3, 1, 1); // no compression
+    tag(262, 3, 1, 2); // RGB
+    tag(273, 4, 1, dataOffset); // strip offset
+    tag(277, 3, 1, 3); // samples per pixel
+    tag(278, 4, 1, f.h); // rows per strip
+    tag(279, 4, 1, dataLen); // strip byte count
+    tag(284, 3, 1, 1); // planar config
+    tag(296, 3, 1, 2); // resolution unit inch
+    u32(next);
+    u16(8);
+    u16(8);
+    u16(8);
+    for (let i = 0; i < f.w * f.h; i++) parts.push(...f.color);
+    offset = next;
+  });
+  return new Uint8Array(parts);
+}

@@ -344,6 +344,11 @@ export class WorkspaceController {
     // Highlight what was inserted into an existing document; a first import selects nothing
     // (so a stray Delete cannot remove the whole document).
     const wasEmpty = this.state.pages.length === 0;
+    // A new, still-untitled workspace takes the name of the first file added to it.
+    if (wasEmpty && next.name === 'Untitled workspace' && files[0] && files[0].name !== 'Blank page') {
+      const base = files[0].name.replace(/\.[a-z0-9]{2,5}$/i, '').trim();
+      if (base) next = { ...next, name: files.length > 1 ? `${base} + ${files.length - 1} more` : base };
+    }
     this.apply(next, text, { selection: wasEmpty ? [] : ids, activePageId: ids[0] });
     return ids;
   }

@@ -258,7 +258,7 @@ function ToolOptions() {
       body = pending ? (
         <>
           <img src={pending.previewUrl} alt="" className="pending-preview" />
-          <span className="opt-hint">Click on a page to place it, or drag to set its size.</span>
+          <span className="opt-hint opt-hint-strong">{pending.signature ? 'Click where the signature should go' : 'Click on a page to place the image'} — or drag to set its size.</span>
           <button type="button" className="btn btn-labelled" onClick={() => document.getElementById('image-picker')?.click()}>
             Choose another…
           </button>

@@ -111,9 +111,14 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
   expect((await stateLabels(page))[11]).toBe('B-3');
   await page.getByTestId('zoom-in').click();
   await page.getByTestId('zoom-in').click();
-  await expect(page.getByTestId('zoom-select').locator('option').first()).toHaveText(/%/);
+  await expect(page.getByTestId('zoom-select')).toHaveValue(/%/);
+  // Type a custom zoom.
+  await page.getByTestId('zoom-select').fill('135');
+  await page.getByTestId('zoom-select').press('Enter');
+  await expect(page.getByTestId('zoom-select')).toHaveValue('135%');
   // Fit the whole page on screen for drawing.
-  await page.getByTestId('zoom-select').selectOption('fit-page');
+  await page.getByTestId('zoom-select').fill('Fit page');
+  await page.getByTestId('zoom-select').press('Enter');
   await openPage(page, 12);
 
   // 8. add RED text

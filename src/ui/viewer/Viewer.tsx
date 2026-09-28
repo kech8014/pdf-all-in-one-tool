@@ -6,6 +6,7 @@ import { PageView } from './PageView';
 
 const PAD = 24;
 const GAP = 34;
+const ZOOMBAR_SPACE = 64;
 
 /**
  * Continuous vertical viewer. Only pages near the viewport are mounted (and therefore
@@ -39,7 +40,8 @@ export function Viewer() {
   const activeIdx = Math.max(0, geo.findIndex((g) => g.page.id === activePageId));
   const maxW = geo.reduce((m, g) => Math.max(m, g.dispW), 1);
   const availW = Math.max(100, box.w - 2 * PAD);
-  const availH = Math.max(100, box.h - 2 * PAD);
+  // Leave room for the floating zoom bar so "Fit page" really shows the whole page.
+  const availH = Math.max(100, box.h - 2 * PAD - ZOOMBAR_SPACE);
   const ref = geo[activeIdx];
   let scale = zoom * PT_TO_PX;
   if (zoomMode === 'fit-width') scale = availW / maxW;
@@ -59,7 +61,7 @@ export function Viewer() {
       tops.push(y);
       y += g.dispH * scale + GAP;
     }
-    return { tops, total: y - GAP + PAD };
+    return { tops, total: y - GAP + PAD + ZOOMBAR_SPACE };
   }, [geo, scale]);
 
   const innerW = Math.max(box.w, maxW * scale + 2 * PAD);
@@ -278,7 +280,12 @@ function ZoomBar({ pageNumber, pageCount }: { pageNumber: number; pageCount: num
           aria-label="Current page"
           data-testid="page-input"
           onChange={(e) => setPageText(e.target.value.replace(/[^0-9]/g, ''))}
-          onKeyDown={(e) => e.key === 'Enter' && go(Number(pageText) || 1)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            go(Number(pageText) || 1);
+            // Hand the keyboard back to the document so shortcuts work right away.
+            e.currentTarget.blur();
+          }}
           onBlur={() => setPageText(String(pageNumber))}
         />
         <span>/ {pageCount}</span>
@@ -286,29 +293,73 @@ function ZoomBar({ pageNumber, pageCount }: { pageNumber: number; pageCount: num
       <IconButton icon="chevronRight" label="Next page" shortcut="PgDn" onClick={() => go(pageNumber + 1)} disabled={pageNumber >= pageCount} />
       <span className="zoombar-sep" />
       <IconButton icon="zoomOut" label="Zoom out" shortcut="Ctrl -" onClick={() => step(-1)} testId="zoom-out" />
-      <select
-        className="zoom-select"
-        aria-label="Zoom level"
-        data-testid="zoom-select"
-        value={zoomMode === 'custom' ? 'custom' : zoomMode}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === 'fit-width' || v === 'fit-page') ui.set({ zoomMode: v });
-          else if (v !== 'custom') ui.set({ zoom: Number(v), zoomMode: 'custom' });
-        }}
-      >
-        <option value="custom">{Math.round(zoom * 100)}%</option>
-        <option value="fit-width">Fit width</option>
-        <option value="fit-page">Fit page</option>
-        {ZOOM_STEPS.filter((z) => z >= 0.25).map((z) => (
-          <option key={z} value={z}>
-            {Math.round(z * 100)}%
-          </option>
-        ))}
-      </select>
+      <ZoomBox zoom={zoom} zoomMode={zoomMode} />
       <IconButton icon="zoomIn" label="Zoom in" shortcut="Ctrl +" onClick={() => step(1)} testId="zoom-in" />
       <IconButton icon="fitWidth" label="Fit width" active={zoomMode === 'fit-width'} onClick={() => ui.set({ zoomMode: 'fit-width' })} />
       <IconButton icon="fitPage" label="Fit page" active={zoomMode === 'fit-page'} onClick={() => ui.set({ zoomMode: 'fit-page' })} />
     </div>
   );
 }
+
+/**
+ * Zoom box: type any percentage (e.g. "135" or "135%") or pick a preset / fit mode.
+ */
+function ZoomBox({ zoom, zoomMode }: { zoom: number; zoomMode: string }) {
+  const shown = zoomMode === 'fit-width' ? 'Fit width' : zoomMode === 'fit-page' ? 'Fit page' : `${Math.round(zoom * 100)}%`;
+  const [text, setText] = useState(shown);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setText(shown);
+  }, [shown, editing]);
+  const apply = (raw: string) => {
+    const v = raw.trim().toLowerCase();
+    if (v.startsWith('fit w')) ui.set({ zoomMode: 'fit-width' });
+    else if (v.startsWith('fit p')) ui.set({ zoomMode: 'fit-page' });
+    else {
+      const n = parseFloat(v.replace('%', ''));
+      if (Number.isFinite(n) && n > 0) ui.set({ zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, n / 100)), zoomMode: 'custom' });
+    }
+    setEditing(false);
+  };
+  return (
+    <>
+      <input
+        className="zoom-select"
+        aria-label="Zoom level"
+        data-testid="zoom-select"
+        list="zoom-presets"
+        value={editing ? text : shown}
+        onFocus={(e) => {
+          setEditing(true);
+          setText('');
+          e.currentTarget.select();
+        }}
+        onChange={(e) => {
+          setText(e.target.value);
+          // Picking an option from the list applies it immediately.
+          if (ZOOM_PRESET_LABELS.includes(e.target.value)) {
+            apply(e.target.value);
+            e.currentTarget.blur();
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            apply(text);
+            e.currentTarget.blur();
+          } else if (e.key === 'Escape') {
+            setEditing(false);
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={() => setEditing(false)}
+      />
+      <datalist id="zoom-presets">
+        {ZOOM_PRESET_LABELS.map((l) => (
+          <option key={l} value={l} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
+const ZOOM_PRESET_LABELS = ['Fit width', 'Fit page', ...ZOOM_STEPS.filter((z) => z >= 0.25).map((z) => `${Math.round(z * 100)}%`)];
