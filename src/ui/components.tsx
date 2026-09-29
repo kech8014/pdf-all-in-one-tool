@@ -85,14 +85,25 @@ export function Dialog({
   testId?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Parents pass a new onClose on every render; keep the latest in a ref so the focus
+  // setup below runs ONCE when the dialog opens. (Re-running it on each keystroke moved
+  // the cursor out of the field being typed in.)
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    const first = ref.current?.querySelector<HTMLElement>('[autofocus], input, button, select, textarea');
+    const root = ref.current;
+    const first =
+      root?.querySelector<HTMLElement>('[autofocus], [data-autofocus]') ??
+      root?.querySelector<HTMLElement>('.modal-body input:not([type="hidden"]), .modal-body textarea, .modal-body select') ??
+      root?.querySelector<HTMLElement>('.modal-foot button, .modal-body button') ??
+      root?.querySelector<HTMLElement>('button');
     first?.focus();
+    if (first instanceof HTMLInputElement && first.type === 'text') first.select();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
     };
     window.addEventListener('keydown', onKey, true);
@@ -100,7 +111,7 @@ export function Dialog({
       window.removeEventListener('keydown', onKey, true);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
   return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={{ width }} ref={ref} data-testid={testId}>

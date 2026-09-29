@@ -37,3 +37,23 @@ test('several workspaces: create, switch, copy and move pages between them', asy
   await expect(page.getByTestId('workspace-name')).toHaveValue('A');
   expect(await labels(page)).toHaveLength(10);
 });
+
+test('typing a file name in the Download dialog keeps the cursor in the field', async ({ page }) => {
+  await start(page, ['A.pdf']);
+  await page.getByTestId('export-button').click();
+  const field = page.getByTestId('export-name');
+  await expect(field).toBeFocused();
+  await field.fill('');
+  await page.keyboard.type('Merged report', { delay: 20 });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Merged report');
+});
+
+test('Home goes back to the start page and keeps the document under Recent', async ({ page }) => {
+  await start(page, ['A.pdf']);
+  await page.getByTestId('home-button').click();
+  await expect(page.getByTestId('empty-state')).toBeVisible();
+  await expect(page.locator('.home-recent-item').first()).toContainText('A');
+  await page.locator('.home-recent-item').first().click();
+  await expect(page.locator('[data-testid^="thumb-"]').first()).toBeVisible();
+});

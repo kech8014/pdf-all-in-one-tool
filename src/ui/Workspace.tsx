@@ -98,7 +98,7 @@ export function Workspace() {
 /* --------------------------------- header --------------------------------- */
 
 function Header() {
-  const { ctl } = useApp();
+  const { ctl, session, switchTo } = useApp();
   const { state, history, saveStatus, activePageId, exportedState } = useView();
   const historyOpen = useUi((s) => s.historyOpen);
   const [name, setName] = useState(state.name);
@@ -109,6 +109,17 @@ function Header() {
   const statusText = { saved: 'Saved', saving: 'Saving…', pending: 'Saving…', error: 'Not saved', off: 'Not saved (storage unavailable)' }[saveStatus];
   return (
     <header className="topbar">
+      <IconButton
+        icon="home"
+        label="Home — start page (this document stays saved under Recent)"
+        testId="home-button"
+        onClick={async () => {
+          ui.set({ view: 'edit', selectedAnns: null, editDraft: null, dialog: null });
+          if (!ctl.state.pages.length) return;
+          await ctl.flush(); // saved before leaving, so it is listed under Recent
+          switchTo(session.create());
+        }}
+      />
       <button type="button" className="brand" onClick={() => ui.openDialog({ kind: 'workspaces' })} title="Your workspaces" data-testid="workspaces-button">
         <span className="brand-mark"><Icon name="sparkle" size={14} fill="currentColor" strokeWidth={0} /></span>
         <span>Folio</span>
