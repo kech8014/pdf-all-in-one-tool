@@ -1,3 +1,4 @@
+import { documentGroups } from '../core/operations';
 import type { PageId } from '../core/types';
 import type { InputFile, WorkspaceController } from '../store/controller';
 import { ui } from './uiStore';
@@ -45,6 +46,19 @@ export async function importFilesAt(ctl: WorkspaceController, files: File[], ind
     const lockedFiles = files.filter((f) => locked.some((l) => l.name === f.name));
     ui.openDialog({ kind: 'insert', index, mode: 'insert', accept: 'any', files: lockedFiles });
   }
+}
+
+/**
+ * Add files from "Add files", Ctrl+O, the start screen or a drop onto the window. When
+ * the document then holds more than one file, show "Organize PDFs" so the files can be
+ * put in order before working with pages. (Inserting at an exact gap between pages stays
+ * in the page view: there the position was already chosen.)
+ */
+export async function addFilesAndOrganize(ctl: WorkspaceController, files: File[], index: number) {
+  if (!files.length) return;
+  const before = ctl.state.pages.length;
+  await importFilesAt(ctl, files, index);
+  if (ctl.state.pages.length > before && documentGroups(ctl.state).length > 1) ui.set({ view: 'files' });
 }
 
 export function insertionIndexAfterActive(ctl: WorkspaceController): number {

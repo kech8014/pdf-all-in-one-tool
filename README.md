@@ -12,7 +12,7 @@ undo history across everything.
 
 | To… | Do this |
 |---|---|
-| Start | Drop PDFs or images on the start screen, or **Choose files**. With several files you land on **Organize PDFs** first: one card per file — drag the cards (or use the arrows) to decide which file comes first, remove a file, then **Done — show pages**. |
+| Start | Drop PDFs or images on the start screen, or **Choose files**. With several files you land on **Organize PDFs** first: one card per file — drag the cards (or use the arrows) to decide which file comes first, remove a file, then **Save order — show pages**. Adding more PDFs later (Add files, drag & drop) opens this view again. |
 | Switch views | **Edit** (annotate), **Organize pages** (page grid), **Organize PDFs** (whole files) — top right. |
 | Add more | **Add files** (appends). Click the green **+** between two pages to pick files and insert them exactly there (right-click the **+** for a blank page or to pick only some pages), or drop files onto that spot. |
 | Insert at a position | **Insert ▸ PDF pages / Images / Blank page**, the **+** that appears between thumbnails, or right-click a page ▸ *Insert before/after*. The dialog shows the other file's pages so you can pick all or some (`1-3, 5`). |

@@ -123,3 +123,25 @@ test('clear errors: damaged PDF, unsupported file, password-protected PDF', asyn
   await page.getByTestId('insert-confirm').click();
   expect(await labels(page)).toEqual(['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8', 'locked-1', 'locked-2']);
 });
+
+test('adding another PDF later also opens Organize PDFs first', async ({ page }) => {
+  await start(page, ['A.pdf']); // one file: straight to the pages
+  await expect(page.getByTestId('file-list')).toHaveCount(0);
+  await chooseFiles(page, () => page.getByTestId('add-files').click(), ['B.pdf']);
+  await expect(page.getByTestId('file-list')).toBeVisible();
+  await expect(page.getByTestId('file-2')).toContainText('B.pdf');
+  // Put B before A, save, and the pages follow that order.
+  await page.getByTestId('file-up-2').click();
+  await page.getByTestId('files-done').click();
+  await expect(page.getByTestId('page-list-grid')).toBeVisible();
+  const first = await page.evaluate(() => {
+    const s = window.__pdfws!.ctl.state;
+    return s.sources[s.pages[0].sourceId].name;
+  });
+  expect(first).toBe('B.pdf');
+  // Both views stay one click away.
+  await page.getByTestId('view-files').click();
+  await expect(page.getByTestId('file-1')).toContainText('B.pdf');
+  await page.getByTestId('view-organize').click();
+  await expect(page.getByTestId('page-list-grid')).toBeVisible();
+});

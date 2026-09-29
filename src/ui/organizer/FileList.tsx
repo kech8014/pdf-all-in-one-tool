@@ -66,7 +66,7 @@ export function FileList() {
             <Icon name="plus" size={16} /> Add files
           </button>
           <button type="button" className="pill pill-solid" onClick={() => ui.set({ view: 'organize' })} data-testid="files-done">
-            <Icon name="check" size={16} /> Done — show pages
+            <Icon name="check" size={16} /> Save order — show pages
           </button>
         </div>
       </div>

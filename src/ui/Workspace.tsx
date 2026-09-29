@@ -6,7 +6,7 @@ import { translateAnnotation } from '../core/geometry';
 import type { WorkspaceSummary } from '../persistence/idb';
 import { formatBytes } from '../store/controller';
 import { FileList } from './organizer/FileList';
-import { ACCEPT_ANY, deletePagesWithUndo, extractPages, importFilesAt, insertionIndexAfterActive, pickFiles, readFiles } from './actions';
+import { ACCEPT_ANY, addFilesAndOrganize, deletePagesWithUndo, extractPages, insertionIndexAfterActive, pickFiles, readFiles } from './actions';
 import { IconButton, MOD, MenuButton, useApp, useView } from './components';
 import { Dialogs } from './dialogs/Dialogs';
 import { Icon } from './Icon';
@@ -45,7 +45,7 @@ export function Workspace() {
         e.preventDefault();
         setDropping(false);
         const files = [...e.dataTransfer.files];
-        if (files.length) void importFilesAt(ctl, files, insertionIndexAfterActive(ctl));
+        if (files.length) void addFilesAndOrganize(ctl, files, insertionIndexAfterActive(ctl));
       }}
     >
       <Header />
@@ -171,7 +171,7 @@ function DocToolbar() {
   return (
     <div className="doc-toolbar" role="toolbar" aria-label="Page operations">
       {mode === 'edit' && <IconButton icon="sidebar" label={sidebarOpen ? 'Hide pages' : 'Show pages'} active={sidebarOpen} onClick={() => ui.set({ sidebarOpen: !sidebarOpen })} />}
-      <IconButton icon="plus" label="Add files" showLabel shortcut={`${MOD} O`} testId="add-files" onClick={async () => importFilesAt(ctl, await pickFiles(ACCEPT_ANY), state.pages.length)} />
+      <IconButton icon="plus" label="Add files" showLabel shortcut={`${MOD} O`} testId="add-files" onClick={async () => addFilesAndOrganize(ctl, await pickFiles(ACCEPT_ANY), state.pages.length)} />
       <MenuButton
         icon="filePlus"
         label="Insert"
@@ -366,9 +366,7 @@ function BusyOverlay() {
  * order before looking at pages. A single file goes straight to the pages.
  */
 async function startWith(ctl: WorkspaceController, files: File[]) {
-  if (!files.length) return;
-  await importFilesAt(ctl, files, 0);
-  if (files.length > 1 && ctl.state.pages.length) ui.set({ view: 'files' });
+  await addFilesAndOrganize(ctl, files, 0);
 }
 
 function EmptyState() {
@@ -531,7 +529,7 @@ function useKeyboard() {
       }
       if (mod && k === 'o') {
         e.preventDefault();
-        void pickFiles(ACCEPT_ANY).then((f) => importFilesAt(ctl, f, ctl.state.pages.length));
+        void pickFiles(ACCEPT_ANY).then((f) => addFilesAndOrganize(ctl, f, ctl.state.pages.length));
         return;
       }
       if (mod && (k === '=' || k === '+')) {
