@@ -155,7 +155,9 @@ export class WorkspaceController {
 
   notify(kind: NoticeKind, message: string, detail?: string, action?: Notice['action']) {
     const notice: Notice = { id: newId('an'), kind, message, detail, action };
-    this.set({ notices: [...this._view.notices.slice(-4), notice] });
+    // The same message again replaces the old one instead of stacking up.
+    const others = this._view.notices.filter((n) => n.message !== message);
+    this.set({ notices: [...others.slice(-4), notice] });
     return notice.id;
   }
   dismiss(id: string) {

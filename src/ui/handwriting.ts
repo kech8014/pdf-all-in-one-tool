@@ -77,7 +77,8 @@ async function recogniseOnDevice(canvases: HTMLCanvasElement[]): Promise<string[
     const out: string[] = [];
     for (const c of canvases) {
       const { data } = await worker.recognize(c);
-      out.push(data.confidence >= 35 ? data.text : '');
+      // On-device OCR is built for print: accept only confident reads, never a guess.
+      out.push(data.confidence >= 70 ? data.text : '');
     }
     return out;
   } finally {
@@ -117,12 +118,8 @@ export async function convertHandwriting(ctl: WorkspaceController): Promise<numb
   try {
     const blocks = clusterInk(inks, width, height, rotation);
     const canvases = blocks.map((b) => renderBlock(b, width, height, rotation));
-    let texts: string[];
-    if (await serverRecogniser()) {
-      texts = await recogniseOnServer(canvases);
-    } else {
-      texts = await recogniseOnDevice(canvases);
-    }
+    const ai = await serverRecogniser();
+    const texts = ai ? await recogniseOnServer(canvases) : await recogniseOnDevice(canvases);
     const created: TextAnnotation[] = [];
     const removeIds: string[] = [];
     blocks.forEach((b, i) => {
@@ -137,7 +134,13 @@ export async function convertHandwriting(ctl: WorkspaceController): Promise<numb
     const current = new Set(getPage(ctl.state, page.id)?.annotations.map((a) => a.id) ?? []);
     const stillThere = removeIds.filter((id) => current.has(id));
     if (!created.length) {
-      ctl.notify('info', 'No readable handwriting found.', 'Drawings, ticks and scribbles are left as they are.');
+      if (ai) ctl.notify('info', 'No readable handwriting found.', 'Drawings, ticks and scribbles are left as they are.');
+      else
+        ctl.notify(
+          'error',
+          'Handwriting reading is not switched on yet.',
+          'Without it, only very neat print can be read on this device. To read real handwriting, add ANTHROPIC_API_KEY to the Vercel project (Settings → Environment Variables) and redeploy.',
+        );
       return 0;
     }
     ctl.replaceAnnotations(page.id, stillThere, created, `Converted handwriting to text on page ${pageNo}`);

@@ -323,6 +323,12 @@ export interface RecogniseOptions {
    * looser.
    */
   mode: 'auto' | 'hold';
+  /**
+   * False when the stroke is part of writing (drawn right after, and right next to,
+   * another stroke). In 'auto' mode such strokes only ever get line-straightening, so
+   * letters like E, O or C are never turned into boxes, circles or arcs.
+   */
+  isolated?: boolean;
 }
 
 /** Returns the perfect shape the stroke was meant to be, or null to keep it freehand. */
@@ -351,6 +357,10 @@ export function recogniseShape(points: number[], opts: RecogniseOptions): Recogn
     return { kind: 'line', points: [a0[0], a0[1], a0[0] + Math.cos(ang) * chord, a0[1] + Math.sin(ang) * chord] };
   }
   if (!bigEnough) return null;
+  // Automatic snapping beyond straight lines is reserved for closed figures drawn on
+  // their own. Open shapes (angles, arcs) look too much like letters: those snap only
+  // when the user holds still at the end of the stroke.
+  if (!hold && opts.isolated === false) return null;
 
   const closed = chord < Math.max(0.2 * box.diag, 14 * opts.unit) && L > 1.8 * box.diag;
   const spacing = Math.max(opts.unit, box.diag / 60);
@@ -414,6 +424,8 @@ export function recogniseShape(points: number[], opts: RecogniseOptions): Recogn
     }
     return null;
   }
+
+  if (!hold) return null;
 
   /* 2. open run of straight segments: an angle, a check mark, a zig-zag */
   const idx = rdp(pts, box.diag * 0.06 * loose);

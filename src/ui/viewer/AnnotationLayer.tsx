@@ -21,7 +21,7 @@ import type { Annotation, AnnotationId, ImageAnnotation, LineAnnotation, Page, R
 import { useApp } from '../components';
 import { ui, useUi } from '../uiStore';
 import { AnnotationShape } from './AnnotationShape';
-import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newText, shapeInk, strokeFrom } from './annotationFactory';
+import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newText, shapeInk, strokeFrom, strokeIsIsolated } from './annotationFactory';
 
 /**
  * The interactive annotation layer of one page: an SVG in DISPLAY space (points after
@@ -348,7 +348,7 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     switch (g.kind) {
       case 'ink': {
         if (g.timer) clearTimeout(g.timer);
-        const ann = g.snap ? shapeInk(g.tool, settings, g.snap) : strokeFrom(g.tool, settings, g.points, g.pressures, g.simulate, 1 / scale, true);
+        const ann = g.snap ? shapeInk(g.tool, settings, g.snap) : strokeFrom(g.tool, settings, g.points, g.pressures, g.simulate, 1 / scale, true, strokeIsIsolated(g.points, page.annotations));
         ctl.addAnnotation(page.id, ann, g.tool === 'marker' ? 'Drew with the marker' : `Drew with the pen (${settings.penWidth}px)`);
         setCreating(null);
         break;

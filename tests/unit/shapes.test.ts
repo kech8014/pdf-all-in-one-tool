@@ -48,9 +48,24 @@ describe('shape recognition', () => {
     expect(recogniseShape(wobble(poly([[100, 300], [200, 120], [300, 300], [102, 298]]), 2), { unit, mode: 'auto' })?.kind).toBe('triangle');
   });
 
-  it('an arc and an angle', () => {
-    expect(recogniseShape(wobble(ellipse(200, 200, 100, 100, Math.PI, Math.PI * 1.7), 2), { unit, mode: 'auto' })?.kind).toBe('arc');
-    expect(recogniseShape(wobble(poly([[100, 100], [100, 250], [260, 250]]), 1.5), { unit, mode: 'auto' })?.kind).toBe('polyline');
+  it('arcs and angles snap when held, never automatically (they look like letters)', () => {
+    const arc = wobble(ellipse(200, 200, 100, 100, Math.PI, Math.PI * 1.7), 2);
+    const angle = wobble(poly([[100, 100], [100, 250], [260, 250]]), 1.5);
+    expect(recogniseShape(arc, { unit, mode: 'hold' })?.kind).toBe('arc');
+    expect(recogniseShape(angle, { unit, mode: 'hold' })?.kind).toBe('polyline');
+    expect(recogniseShape(arc, { unit, mode: 'auto' })).toBeNull();
+    expect(recogniseShape(angle, { unit, mode: 'auto' })).toBeNull();
+  });
+
+  it('a big single-stroke "E" written by hand is not turned into a shape', () => {
+    const E = wobble(poly([[260, 100], [120, 100], [125, 200], [230, 200], [120, 210], [125, 320], [270, 320]]), 2);
+    expect(recogniseShape(E, { unit, mode: 'auto' })).toBeNull();
+  });
+
+  it('closed shapes drawn as part of writing stay freehand in auto mode', () => {
+    const o = wobble(ellipse(200, 200, 80, 78, 0, Math.PI * 2.02), 3);
+    expect(recogniseShape(o, { unit, mode: 'auto', isolated: false })).toBeNull();
+    expect(recogniseShape(o, { unit, mode: 'hold', isolated: false })?.kind).toBe('circle');
   });
 
   it('handwriting-sized strokes stay freehand in auto mode, but snap when held', () => {

@@ -1,4 +1,4 @@
-import { localSize, normalizeRect } from '../../core/geometry';
+import { annotationBounds, localSize, normalizeRect } from '../../core/geometry';
 import { newId } from '../../core/ids';
 import { simplifyPoints, simplifyStroke } from '../../core/paths';
 import { recogniseShape, smoothFreehand, speedPressures, type RecognisedShape } from '../../core/shapes';
@@ -32,6 +32,29 @@ export function inkFrom(tool: 'pen' | 'marker', s: ToolSettings, points: number[
   return ink;
 }
 
+/**
+ * Is a new stroke on its own, or part of writing? It is writing when it touches, or sits
+ * right next to, pen strokes already on the page.
+ */
+export function strokeIsIsolated(raw: number[], existing: Annotation[]): boolean {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (let i = 0; i + 1 < raw.length; i += 2) {
+    x0 = Math.min(x0, raw[i]);
+    x1 = Math.max(x1, raw[i]);
+    y0 = Math.min(y0, raw[i + 1]);
+    y1 = Math.max(y1, raw[i + 1]);
+  }
+  const gap = Math.max(x1 - x0, y1 - y0) * 0.35;
+  return !existing.some((a) => {
+    if (a.type !== 'ink') return false;
+    const b = annotationBounds(a);
+    return b.x - gap <= x1 && x0 <= b.x + b.w + gap && b.y - gap <= y1 && y0 <= b.y + b.h + gap;
+  });
+}
+
 /** A recognised shape, drawn as a clean uniform stroke in the tool's style. */
 export function shapeInk(tool: 'pen' | 'marker', s: ToolSettings, shape: RecognisedShape): Annotation {
   return inkFrom(tool, s, shape.points);
@@ -50,9 +73,10 @@ export function strokeFrom(
   simulate: boolean,
   unit: number,
   recognise: boolean,
+  isolated = true,
 ): Annotation {
   if (recognise && s.penShapes === 'auto' && raw.length >= 4) {
-    const shape = recogniseShape(raw, { unit, mode: 'auto' });
+    const shape = recogniseShape(raw, { unit, mode: 'auto', isolated });
     if (shape) return shapeInk(tool, s, shape);
   }
   const strength = simulate ? 3 : 1.2; // mouse and finger shake; a stylus is steady
