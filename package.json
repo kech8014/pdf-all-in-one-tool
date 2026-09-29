@@ -20,6 +20,7 @@
     "fflate": "^0.8.3",
     "html-entities": "^2.6.0",
     "pdfjs-dist": "^6.3.289",
+    "perfect-freehand": "^1.2.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "utif": "^3.1.0"

@@ -111,6 +111,7 @@ test('markup, whiteout, note, image and signature all export', async ({ page }) 
 
   // Image: choose a PNG, then click to place it.
   await chooseFiles(page, () => page.getByTestId('tool-image').click(), ['logo.png']);
+  await expect(page.getByText('Click on a page to place the image')).toBeVisible();
   await clickAt(page, 1, [0.5, 0.5]);
   // Signature: draw, then place.
   await page.getByTestId('tool-signature').click();
@@ -120,6 +121,7 @@ test('markup, whiteout, note, image and signature all export', async ({ page }) 
   for (let i = 0; i < 15; i++) await page.mouse.move(pad.x + 50 + i * 25, pad.y + 60 + (i % 2) * 40);
   await page.mouse.up();
   await page.getByTestId('signature-use').click();
+  await expect(page.getByText('Click where the signature should go')).toBeVisible();
   await clickAt(page, 1, [0.6, 0.8]);
 
   const types = (await anns(page, 1)).map((a) => a.type);
@@ -135,4 +137,43 @@ test('markup, whiteout, note, image and signature all export', async ({ page }) 
   expect((content.match(/\bDo\b/g) ?? []).length).toBeGreaterThanOrEqual(2); // two placed images
   expect(content).toMatch(/\/GS\S* gs/); // highlight blend state
   expect((await pageTexts(bytes))[0]).toContain('A-1'); // original text preserved under the markup
+});
+
+test('drawing on a partly scrolled page never jumps; ink varies in width', async ({ page }) => {
+  // Zoom in so page 2 is taller than the screen, and scroll so its top is above the view.
+  await page.getByTestId('zoom-select').fill('150');
+  await page.getByTestId('zoom-select').press('Enter');
+  await goToPage(page, 2);
+  const viewer = page.getByTestId('viewer');
+  await viewer.evaluate((el) => (el.scrollTop += 300));
+  await page.waitForTimeout(300);
+  // Make page 1 the active page first, so drawing on page 2 changes the active page.
+  await page.evaluate(() => {
+    const { ctl } = window.__pdfws!;
+    ctl.setActive(ctl.state.pages[0].id);
+  });
+  const before = await viewer.evaluate((el) => el.scrollTop);
+  const box = (await page.locator('[data-page-number="2"] .ann-layer').boundingBox())!;
+  const vbox = (await viewer.boundingBox())!;
+  const startY = vbox.y + 200;
+  await page.getByTestId('tool-pen').click();
+  await page.mouse.move(box.x + 100, startY);
+  await page.mouse.down();
+  for (let i = 1; i <= 30; i++) await page.mouse.move(box.x + 100 + i * 8, startY + Math.sin(i / 4) * 30, { steps: i % 3 === 0 ? 1 : 4 });
+  await page.mouse.up();
+  expect(await viewer.evaluate((el) => el.scrollTop)).toBe(before);
+  const [ink] = (await anns(page, 2)) as { points: number[]; pressures?: number[] }[];
+  // The stroke starts where the pen touched down (no stray segment from elsewhere).
+  const pageW = await page.evaluate(() => {
+    const s = window.__pdfws!.ctl.state;
+    const p = s.pages[1];
+    return s.sources[p.sourceId].pages[p.sourcePageIndex].width;
+  });
+  const scale = box.width / pageW;
+  expect(Math.abs(ink.points[0] - 100 / scale)).toBeLessThan(3);
+  expect(Math.abs(ink.points[1] - (startY - box.y) / scale)).toBeLessThan(3);
+  for (let i = 2; i < ink.points.length; i += 2) {
+    expect(Math.hypot(ink.points[i] - ink.points[i - 2], ink.points[i + 1] - ink.points[i - 1])).toBeLessThan(40);
+  }
+  expect(ink.pressures?.length).toBe(ink.points.length / 2);
 });

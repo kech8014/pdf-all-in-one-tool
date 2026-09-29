@@ -9,9 +9,13 @@ export const BOX_TOOLS: Tool[] = ['rect', 'ellipse', 'highlight', 'whiteout', 'u
 export const LINE_TOOLS: Tool[] = ['line', 'arrow'];
 export const INK_TOOLS: Tool[] = ['pen', 'marker'];
 
-export function inkFrom(tool: 'pen' | 'marker', s: ToolSettings, points: number[]): Annotation {
+/**
+ * Pen strokes are "ink" (variable width from pressure or speed); the marker stays a
+ * uniform translucent band like a real highlighter.
+ */
+export function inkFrom(tool: 'pen' | 'marker', s: ToolSettings, points: number[], pressures?: number[], simulate = true): Annotation {
   const marker = tool === 'marker';
-  return {
+  const ink: Annotation = {
     id: newId('an'),
     type: 'ink',
     points,
@@ -19,6 +23,11 @@ export function inkFrom(tool: 'pen' | 'marker', s: ToolSettings, points: number[
     width: marker ? s.markerWidth : s.penWidth,
     opacity: marker ? s.markerOpacity : s.penOpacity,
   };
+  if (!marker && pressures && pressures.length === points.length / 2) {
+    ink.pressures = pressures;
+    ink.simulatePressure = simulate;
+  }
+  return ink;
 }
 
 /** Annotation for a box tool dragged from (x1,y1) to (x2,y2) in page space. */

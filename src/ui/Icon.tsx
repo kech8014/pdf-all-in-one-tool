@@ -3,6 +3,8 @@ import type { SVGProps } from 'react';
 /** Stroke icons on a 24x24 grid (drawn for this app; no icon dependency). */
 const PATHS: Record<string, string> = {
   plus: 'M12 5v14M5 12h14',
+  sparkle: 'M12 3c.8 4.6 4.4 8.2 9 9-4.6.8-8.2 4.4-9 9-.8-4.6-4.4-8.2-9-9 4.6-.8 8.2-4.4 9-9z',
+  arrowRight: 'M5 12h14M13 6l6 6-6 6',
   minus: 'M5 12h14',
   file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5',
   filePlus: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6',

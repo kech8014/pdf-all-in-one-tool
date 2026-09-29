@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
 import {
   annotationBounds,
   applyMatrix,
@@ -15,7 +15,7 @@ import {
   type Matrix,
 } from '../../core/geometry';
 import { newId } from '../../core/ids';
-import { simplifyPoints } from '../../core/paths';
+import { simplifyStroke } from '../../core/paths';
 import type { Annotation, AnnotationId, ImageAnnotation, LineAnnotation, Page, Rect, Rotation } from '../../core/types';
 import { useApp } from '../components';
 import { ui, useUi } from '../uiStore';
@@ -33,7 +33,7 @@ import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitT
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'p1' | 'p2';
 
 type Gesture =
-  | { kind: 'ink'; tool: 'pen' | 'marker'; points: number[] }
+  | { kind: 'ink'; tool: 'pen' | 'marker'; points: number[]; pressures: number[]; simulate: boolean }
   | { kind: 'box'; tool: (typeof BOX_TOOLS)[number]; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'line'; tool: 'line' | 'arrow'; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'place'; what: 'text' | 'image'; x0: number; y0: number; x1: number; y1: number }
@@ -53,6 +53,28 @@ interface Props {
 
 const HANDLE_PX = 9;
 
+/** Stylus pressure when the device reports it; a neutral value otherwise. */
+function pressureOf(e: PointerEvent): number {
+  return e.pointerType === 'pen' && e.pressure > 0 ? e.pressure : 0.5;
+}
+
+let penSeen = false;
+const penListeners = new Set<() => void>();
+function markPenSeen() {
+  if (penSeen) return;
+  penSeen = true;
+  penListeners.forEach((l) => l());
+}
+function usePenSeen() {
+  const [seen, setSeen] = useState(penSeen);
+  useEffect(() => {
+    const l = () => setSeen(true);
+    penListeners.add(l);
+    return () => void penListeners.delete(l);
+  }, []);
+  return seen;
+}
+
 export const AnnotationLayer = memo(function AnnotationLayer({ page, width, height, rotation, scale, pageNumber }: Props) {
   const { ctl } = useApp();
   const tool = useUi((s) => s.tool);
@@ -60,6 +82,7 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
   const selected = useUi((s) => (s.selectedAnns?.pageId === page.id ? s.selectedAnns.ids : null));
   const draftEdit = useUi((s) => (s.editDraft?.pageId === page.id ? s.editDraft : null));
   const pending = useUi((s) => s.pendingImage);
+  const stylus = usePenSeen();
 
   const svgRef = useRef<SVGSVGElement>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -99,6 +122,9 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
 
   function onPointerDown(e: RPointerEvent<SVGSVGElement>) {
     if (e.button !== 0 || tool === 'hand') return;
+    if (e.pointerType === 'pen') markPenSeen();
+    // Palm rejection: once a stylus has been used, fingers scroll and zoom instead of drawing.
+    if (e.pointerType === 'touch' && penSeen && tool !== 'select') return;
     const target = e.target as Element;
     const [x, y] = pagePoint(e);
     const handle = target.getAttribute('data-handle') as Handle | null;
@@ -134,8 +160,9 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
 
     ui.clearAnns();
     if (INK_TOOLS.includes(tool)) {
-      gesture.current = { kind: 'ink', tool: tool as 'pen' | 'marker', points: [x, y] };
-      setCreating(inkFrom(tool as 'pen' | 'marker', settings, [x, y]));
+      const simulate = e.pointerType !== 'pen';
+      gesture.current = { kind: 'ink', tool: tool as 'pen' | 'marker', points: [x, y], pressures: [pressureOf(e.nativeEvent)], simulate };
+      setCreating(inkFrom(tool as 'pen' | 'marker', settings, [x, y], [pressureOf(e.nativeEvent)], simulate));
     } else if (BOX_TOOLS.includes(tool)) {
       gesture.current = { kind: 'box', tool, x0: x, y0: y, x1: x, y1: y };
     } else if (LINE_TOOLS.includes(tool)) {
@@ -188,8 +215,11 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     switch (g.kind) {
       case 'ink': {
         const events = typeof e.nativeEvent.getCoalescedEvents === 'function' ? e.nativeEvent.getCoalescedEvents() : [];
-        for (const ev of events.length ? events : [e.nativeEvent]) g.points.push(...pagePoint(ev));
-        setCreating(inkFrom(g.tool, settings, g.points.slice()));
+        for (const ev of events.length ? events : [e.nativeEvent]) {
+          g.points.push(...pagePoint(ev));
+          g.pressures.push(pressureOf(ev));
+        }
+        setCreating(inkFrom(g.tool, settings, g.points.slice(), g.pressures.slice(), g.simulate));
         break;
       }
       case 'box':
@@ -272,8 +302,8 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     const [x, y] = pagePoint(e);
     switch (g.kind) {
       case 'ink': {
-        const pts = simplifyPoints(g.points, 0.8 / scale);
-        ctl.addAnnotation(page.id, inkFrom(g.tool, settings, pts), g.tool === 'marker' ? 'Drew with the marker' : `Drew with the pen (${settings.penWidth}px)`);
+        const st = simplifyStroke(g.points, g.pressures, 0.35 / scale);
+        ctl.addAnnotation(page.id, inkFrom(g.tool, settings, st.points, st.pressures, g.simulate), g.tool === 'marker' ? 'Drew with the marker' : `Drew with the pen (${settings.penWidth}px)`);
         setCreating(null);
         break;
       }
@@ -420,7 +450,7 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
       data-testid={`ann-layer-${pageNumber}`}
       viewBox={`0 0 ${dispW} ${dispH}`}
       preserveAspectRatio="none"
-      style={{ cursor, pointerEvents: tool === 'hand' ? 'none' : 'auto' }}
+      style={{ cursor, pointerEvents: tool === 'hand' ? 'none' : 'auto', touchAction: stylus ? 'pan-x pan-y pinch-zoom' : 'none' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

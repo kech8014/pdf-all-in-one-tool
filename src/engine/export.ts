@@ -38,6 +38,7 @@ import {
 import { hexToRgb } from '../core/color';
 import { WorkspaceError } from '../core/errors';
 import { NOTE_SIZE, effectiveRotation, localSize, localToPageMatrix } from '../core/geometry';
+import { inkOutline, outlineSegs } from '../core/ink';
 import { arrowHead, arrowShaftEnd, smoothStroke } from '../core/paths';
 import type { Annotation, BlobId, ImageAnnotation, Page, PageId, TextAnnotation, WorkspaceState } from '../core/types';
 import { validateState } from '../core/validation';
@@ -215,6 +216,24 @@ async function drawAnnotations(doc: PDFDocument, page: PDFPage, anns: Annotation
     ops.push(pushGraphicsState(), ...gs(a.opacity, a.type === 'highlight'));
     switch (a.type) {
       case 'ink': {
+        const outline = inkOutline(a);
+        if (outline) {
+          // Variable-width ink: fill the exact outline shown on screen.
+          let cx = 0;
+          let cy = 0;
+          ops.push(fillColor(a.color));
+          for (const s of outlineSegs(outline)) {
+            if (s.op === 'M') ops.push(moveTo(s.x, s.y));
+            else
+              ops.push(
+                appendBezierCurve(cx + (2 / 3) * (s.cx - cx), cy + (2 / 3) * (s.cy - cy), s.x + (2 / 3) * (s.cx - s.x), s.y + (2 / 3) * (s.cy - s.y), s.x, s.y),
+              );
+            cx = s.x;
+            cy = s.y;
+          }
+          ops.push(closePath(), fill());
+          break;
+        }
         ops.push(strokeColor(a.color), setLineWidth(a.width), setLineCap(LineCapStyle.Round), setLineJoin(LineJoinStyle.Round));
         let cx = 0;
         let cy = 0;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as H from '../core/history';
 import { getPage, usedSourceIds } from '../core/operations';
 import { translateAnnotation } from '../core/geometry';
+import type { WorkspaceSummary } from '../persistence/idb';
 import { formatBytes } from '../store/controller';
 import { ACCEPT_ANY, deletePagesWithUndo, extractPages, importFilesAt, insertionIndexAfterActive, pickFiles, readFiles } from './actions';
 import { IconButton, MOD, MenuButton, useApp, useView } from './components';
@@ -107,8 +108,8 @@ function Header() {
   return (
     <header className="topbar">
       <button type="button" className="brand" onClick={() => ui.openDialog({ kind: 'workspaces' })} title="Your workspaces" data-testid="workspaces-button">
-        <Icon name="logo" size={22} />
-        <span>PDF Workspace</span>
+        <span className="brand-mark"><Icon name="sparkle" size={14} fill="currentColor" strokeWidth={0} /></span>
+        <span>Folio</span>
         <Icon name="chevronDown" size={14} />
       </button>
       <div className="doc-title">
@@ -356,13 +357,58 @@ function BusyOverlay() {
 }
 
 function EmptyState() {
-  const { ctl } = useApp();
+  const { ctl, session, switchTo } = useApp();
   const { history } = useView();
   const [over, setOver] = useState(false);
+  const [recent, setRecent] = useState<WorkspaceSummary[]>([]);
+  useEffect(() => {
+    void session.list().then((l) => setRecent(l.filter((w) => w.pageCount > 0 && w.id !== ctl.state.id).slice(0, 4)));
+  }, [session, ctl]);
+  const choose = async () => importFilesAt(ctl, await pickFiles(ACCEPT_ANY), 0);
   return (
-    <div className="empty">
-      <div
-        className={`empty-card ${over ? 'is-over' : ''}`}
+    <div className="home" data-testid="empty-state">
+      <div className="home-grid" aria-hidden="true" />
+      <section className="home-hero">
+        <span className="pill-badge">
+          <Icon name="sparkle" size={12} fill="currentColor" strokeWidth={0} className="spark" /> ONE LIVE DOCUMENT
+        </span>
+        <h1 className="home-title">
+          <span className="dim">Every PDF task.</span>
+          <br />
+          One living document.
+        </h1>
+        <p className="home-lead">
+          Merge, reorder, insert, compress, annotate and sign — in any order, as often as you like. Download only when it&rsquo;s finished. Nothing ever leaves your
+          computer.
+        </p>
+        <div className="home-actions">
+          <button type="button" className="pill pill-solid" data-testid="empty-choose" onClick={choose}>
+            Choose files <Icon name="arrowRight" size={16} />
+          </button>
+          {recent.length > 0 ? (
+            <button type="button" className="pill pill-ghost" onClick={() => ui.openDialog({ kind: 'workspaces' })}>
+              Open a workspace <Icon name="folder" size={16} />
+            </button>
+          ) : (
+            <button type="button" className="pill pill-ghost" onClick={() => ui.openDialog({ kind: 'shortcuts' })}>
+              Keyboard shortcuts <Icon name="keyboard" size={16} />
+            </button>
+          )}
+          {H.canUndo(history) && (
+            <button type="button" className="pill pill-ghost" onClick={() => ctl.undo()}>
+              <Icon name="undo" size={16} /> Undo “{H.undoLabel(history)}”
+            </button>
+          )}
+        </div>
+        <div className="home-caps">
+          {['Merge', 'Reorder', 'Insert', 'Compress', 'Annotate', 'Sign'].map((w) => (
+            <span key={w}>{w}</span>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className={`home-card ${over ? 'is-over' : ''}`}
         onDragOver={(e) => {
           e.preventDefault();
           setOver(true);
@@ -375,32 +421,56 @@ function EmptyState() {
           void importFilesAt(ctl, [...e.dataTransfer.files], 0);
         }}
       >
-        <Icon name="upload" size={44} />
-        <h1>Start your PDF workspace</h1>
-        <p>Drop PDFs or images here, or choose them from your computer. Several files are merged in the order you pick them.</p>
-        <button type="button" className="btn btn-labelled btn-primary btn-lg" data-testid="empty-choose" onClick={async () => importFilesAt(ctl, await pickFiles(ACCEPT_ANY), 0)}>
-          <Icon name="plus" /> Choose files
+        <div className="home-card-head">
+          <span>New workspace</span>
+          <span className="home-dots" aria-hidden="true">
+            •••
+          </span>
+        </div>
+        <button type="button" className="home-drop" onClick={choose} aria-label="Choose files to start">
+          <div className="stack" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+          <strong>Drop PDFs or images</strong>
+          <span>or click to browse · PDF, JPG, PNG, WebP, TIFF</span>
         </button>
-        <ul className="empty-tips">
-          <li>
-            <Icon name="grid" /> Reorder, rotate, delete and insert pages anywhere
-          </li>
-          <li>
-            <Icon name="pen" /> Add text, drawings, highlights, shapes, notes and signatures
-          </li>
-          <li>
-            <Icon name="compress" /> Compress without starting over — then keep editing
-          </li>
-          <li>
-            <Icon name="lock" /> Files stay on this computer. Nothing is uploaded
-          </li>
-        </ul>
-        {H.canUndo(history) && (
-          <button type="button" className="btn btn-labelled btn-ghost" onClick={() => ctl.undo()}>
-            <Icon name="undo" /> Undo “{H.undoLabel(history)}”
-          </button>
+        <div className="home-stats">
+          <div>
+            <b>0</b>
+            <span>uploads</span>
+          </div>
+          <div>
+            <b>100%</b>
+            <span>on this device</span>
+          </div>
+          <div>
+            <b>∞</b>
+            <span>undo steps</span>
+          </div>
+        </div>
+        {recent.length > 0 && (
+          <div className="home-recent">
+            <span className="home-recent-title">Recent</span>
+            {recent.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                className="home-recent-item"
+                onClick={async () => {
+                  const next = await session.open(w.id);
+                  if (next) switchTo(next);
+                }}
+              >
+                <Icon name="file" size={16} />
+                <span className="name">{w.name}</span>
+                <span className="meta">{w.pageCount} pages</span>
+              </button>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

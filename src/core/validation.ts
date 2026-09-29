@@ -13,6 +13,7 @@ function checkAnnotation(a: Annotation, where: string, problems: string[]) {
     case 'ink':
       if (a.points.length < 2 || a.points.length % 2 !== 0 || !finite(...a.points)) problems.push(`${where}/${a.id}: bad ink points`);
       if (!finite(a.width) || a.width <= 0) problems.push(`${where}/${a.id}: bad pen width`);
+      if (a.pressures && (a.pressures.length !== a.points.length / 2 || !finite(...a.pressures))) problems.push(`${where}/${a.id}: bad pressures`);
       break;
     case 'line':
       if (!finite(a.x1, a.y1, a.x2, a.y2, a.width)) problems.push(`${where}/${a.id}: bad line`);

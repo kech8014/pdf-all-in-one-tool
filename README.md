@@ -1,4 +1,4 @@
-# PDF Workspace
+# Folio — PDF Workspace
 
 A browser-based PDF workspace. Import PDFs and images, then merge, reorder, insert, delete,
 rotate, compress, annotate and sign — **all on one live document** — and download the

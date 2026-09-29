@@ -104,7 +104,15 @@ export interface InkAnnotation extends AnnotationBase {
   type: 'ink';
   points: number[];
   color: string;
+  /** Nominal thickness. With `pressures`, the stroke swells and thins around it. */
   width: number;
+  /**
+   * Pen pressure per point (0..1). Present = "ink" rendering: a filled, variable-width
+   * outline. Absent = a uniform stroke (marker, older drawings).
+   */
+  pressures?: number[];
+  /** True when the device gave no real pressure: width then follows drawing speed. */
+  simulatePressure?: boolean;
 }
 
 export interface TextAnnotation extends AnnotationBase {

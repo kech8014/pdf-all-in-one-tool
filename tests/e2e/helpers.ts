@@ -10,7 +10,7 @@ export async function freshStart(page: Page) {
     localStorage.clear();
   });
   await page.reload();
-  await expect(page.getByText('Start your PDF workspace')).toBeVisible();
+  await expect(page.getByTestId('empty-state')).toBeVisible();
 }
 
 export async function chooseFiles(page: Page, trigger: () => Promise<void>, files: string[]) {

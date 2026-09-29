@@ -48,7 +48,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.clear();
   });
   await page.reload();
-  await expect(page.getByText('Start your PDF workspace')).toBeVisible();
+  await expect(page.getByTestId('empty-state')).toBeVisible();
 });
 
 test('the full chained workflow, entirely through the UI', async ({ page }) => {
@@ -194,8 +194,8 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
   expect(texts[0]).toContain('RED TEXT ON B3');
   expect(texts.filter((t) => t.includes('RED TEXT')).length).toBe(1);
   const c0 = await pageContent(bytes, 0);
-  expect(c0).toMatch(/\b5 w\b/);
-  expect(c0).toMatch(/\b2 w\b/);
+  // Pen strokes are filled variable-width ink outlines (curves + fill), in red.
+  expect((c0.match(/ c\n/g) ?? []).length).toBeGreaterThan(20);
   expect(c0).toMatch(/0\.88\d* 0\.11\d* 0\.16\d* rg/);
   expect((await pageGeometry(bytes))[scanIndex - 1].rotate).toBe(90);
   await expect(page.getByTestId('unexported')).toHaveCount(0);

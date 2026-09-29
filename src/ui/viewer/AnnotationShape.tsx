@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { NOTE_SIZE, localSize, localToPageMatrix } from '../../core/geometry';
 import { arrowHead, arrowShaftEnd, segsToSvg, smoothStroke } from '../../core/paths';
+import { inkOutline, outlineSvg } from '../../core/ink';
 import type { Annotation, BlobId } from '../../core/types';
 import { CSS_FONT, layoutText } from '../../engine/textLayout';
 
@@ -93,7 +94,9 @@ function NoteShape({ a }: { a: Extract<Annotation, { type: 'note' }> }) {
 export const AnnotationShape = memo(function AnnotationShape({ a, hidden }: { a: Annotation; hidden?: boolean }) {
   if (hidden && a.type !== 'text') return null;
   switch (a.type) {
-    case 'ink':
+    case 'ink': {
+      const outline = inkOutline(a);
+      if (outline) return <path d={outlineSvg(outline)} fill={a.color} opacity={a.opacity} />;
       return (
         <path
           d={segsToSvg(smoothStroke(a.points))}
@@ -105,6 +108,7 @@ export const AnnotationShape = memo(function AnnotationShape({ a, hidden }: { a:
           opacity={a.opacity}
         />
       );
+    }
     case 'line': {
       if (a.style === 'arrow') {
         const [ex, ey] = arrowShaftEnd(a.x1, a.y1, a.x2, a.y2, a.width);

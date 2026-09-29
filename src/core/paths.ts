@@ -52,6 +52,23 @@ export function simplifyPoints(points: number[], minDist: number): number[] {
   return out;
 }
 
+/** simplifyPoints for a stroke that carries one pressure value per point. */
+export function simplifyStroke(points: number[], pressures: number[], minDist: number): { points: number[]; pressures: number[] } {
+  const n = points.length / 2;
+  if (n <= 2) return { points: points.slice(), pressures: pressures.slice() };
+  const pts = [points[0], points[1]];
+  const pr = [pressures[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (Math.hypot(points[2 * i] - pts[pts.length - 2], points[2 * i + 1] - pts[pts.length - 1]) >= minDist) {
+      pts.push(points[2 * i], points[2 * i + 1]);
+      pr.push(pressures[i]);
+    }
+  }
+  pts.push(points[2 * n - 2], points[2 * n - 1]);
+  pr.push(pressures[n - 1]);
+  return { points: pts, pressures: pr };
+}
+
 /** Arrow head triangle for a line from (x1,y1) to (x2,y2): returns the three corners. */
 export function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number): [number, number][] {
   const len = Math.max(8, width * 4);

@@ -140,7 +140,14 @@ export function Viewer() {
     if (!el || !activePageId) return;
     const explicit = scrollRequest !== lastRequest.current;
     lastRequest.current = scrollRequest;
-    if (!explicit && activeFromScroll.current === activePageId) return;
+    // Only move the view when navigation was asked for (organizer, page box, keys) or on
+    // first open. A page becoming active because the user clicked or drew on it must NEVER
+    // scroll: moving the page under the pen mid-stroke is what drew stray straight lines.
+    const first = activeFromScroll.current === null;
+    if (!explicit && !first) {
+      activeFromScroll.current = activePageId;
+      return;
+    }
     const i = geo.findIndex((g) => g.page.id === activePageId);
     if (i < 0) return;
     const top = layout.tops[i];

@@ -9,7 +9,7 @@ test('several workspaces: create, switch, copy and move pages between them', asy
   // A second workspace.
   await page.getByTestId('workspaces-button').click();
   await page.getByTestId('new-workspace').click();
-  await expect(page.getByText('Start your PDF workspace')).toBeVisible();
+  await expect(page.getByTestId('empty-state')).toBeVisible();
   await chooseFiles(page, () => page.getByTestId('empty-choose').click(), ['D.pdf']);
   await expect(page.getByTestId('workspace-name')).toHaveValue('D');
   const secondId = await page.evaluate(() => window.__pdfws!.ctl.state.id);
