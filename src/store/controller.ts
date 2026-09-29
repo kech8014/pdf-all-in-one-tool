@@ -447,6 +447,12 @@ export class WorkspaceController {
     this.apply(Ops.removeAnnotations(this.state, refs), label ?? (refs.length === 1 ? 'Deleted annotation' : `Deleted ${refs.length} annotations`));
   }
 
+  /** Swap some annotations of a page for others in ONE undo step (e.g. handwriting -> text). */
+  replaceAnnotations(pageId: PageId, removeIds: AnnotationId[], add: Annotation[], label: string) {
+    const removed = Ops.removeAnnotations(this.state, removeIds.map((annotationId) => ({ pageId, annotationId })));
+    this.apply(Ops.addAnnotations(removed, pageId, add), label);
+  }
+
   reorderAnnotations(pageId: PageId, ids: AnnotationId[], where: ZOrder) {
     const label = { front: 'Brought to front', back: 'Sent to back', forward: 'Brought forward', backward: 'Sent backward' }[where];
     this.apply(Ops.reorderAnnotations(this.state, pageId, ids, where), label);

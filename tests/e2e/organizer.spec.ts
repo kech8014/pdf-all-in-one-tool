@@ -19,8 +19,8 @@ test('range selection, keyboard moves, duplicate, rotate, blank page and extract
   // Rotate via the thumbnail's hover action.
   await list(page).getByTestId('thumb-1').hover();
   await list(page).getByTestId('thumb-1').getByLabel('Rotate page 1 right').click();
-  // Blank page through the gap "+" menu, before page 1.
-  await list(page).getByTestId('gap-add-0').click();
+  // Blank page through the gap "+" right-click menu, before page 1.
+  await list(page).getByTestId('gap-add-0').click({ button: 'right' });
   await page.getByText('Insert blank page').click();
   await expect.poll(async () => (await labels(page))[0]).toBe('blank'); // created in the background worker
   // Keyboard delete in the organizer.

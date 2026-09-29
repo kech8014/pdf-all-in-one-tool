@@ -2,7 +2,7 @@ import { Fragment, memo, useCallback, useEffect, useRef, useState, type DragEven
 import { displaySize, effectiveRotation, pageSize, pageToDisplayMatrix } from '../../core/geometry';
 import type { Page, PageId, Rotation } from '../../core/types';
 import { requestThumb } from '../../render/pdfRender';
-import { deletePagesWithUndo, extractPages, importFilesAt } from '../actions';
+import { ACCEPT_ANY, deletePagesWithUndo, extractPages, importFilesAt, pickFiles } from '../actions';
 import { Menu, useApp, useView, type MenuEntry } from '../components';
 import { Icon } from '../Icon';
 import { ui } from '../uiStore';
@@ -68,6 +68,10 @@ export function PageList({ layout, thumbWidth }: Props) {
     },
     [ctl, layout],
   );
+
+  async function pickAndInsert(index: number) {
+    await importFilesAt(ctl, await pickFiles(ACCEPT_ANY), index);
+  }
 
   function insertMenu(index: number): MenuEntry[] {
     return [
@@ -235,7 +239,7 @@ export function PageList({ layout, thumbWidth }: Props) {
     >
       {pages.map((p, i) => (
         <Fragment key={p.id}>
-          <Gap index={i} layout={layout} active={drop?.index === i} files={!!drop?.files} onMenu={(x, y) => setMenu({ x, y, items: insertMenu(i) })} />
+          <Gap index={i} layout={layout} active={drop?.index === i} files={!!drop?.files} onPick={() => pickAndInsert(i)} onMenu={(x, y) => setMenu({ x, y, items: insertMenu(i) })} />
           <Thumb
             page={p}
             index={i}
@@ -254,27 +258,33 @@ export function PageList({ layout, thumbWidth }: Props) {
           />
         </Fragment>
       ))}
-      <Gap index={pages.length} layout={layout} active={drop?.index === pages.length} files={!!drop?.files} last onMenu={(x, y) => setMenu({ x, y, items: insertMenu(pages.length) })} />
+      <Gap index={pages.length} layout={layout} active={drop?.index === pages.length} files={!!drop?.files} last onPick={() => pickAndInsert(pages.length)} onMenu={(x, y) => setMenu({ x, y, items: insertMenu(pages.length) })} />
       {menu && <Menu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
     </div>
   );
 }
 
-function Gap({ index, layout, active, files, last, onMenu }: { index: number; layout: string; active: boolean; files: boolean; last?: boolean; onMenu: (x: number, y: number) => void }) {
+/**
+ * The "+" between two pages: a click opens the system file picker straight away and the
+ * chosen PDFs/images land exactly here. Right-click offers the other choices (blank page,
+ * pick pages from a PDF).
+ */
+function Gap({ index, layout, active, files, last, onPick, onMenu }: { index: number; layout: string; active: boolean; files: boolean; last?: boolean; onPick: () => void; onMenu: (x: number, y: number) => void }) {
   return (
     <div className={`gap gap-${layout} ${active ? 'is-drop' : ''} ${files ? 'is-files' : ''} ${last ? 'is-last' : ''}`} data-gap-index={index}>
       <button
         type="button"
         className="gap-add"
-        title={index === 0 ? 'Insert at the start' : `Insert after page ${index}`}
+        title={`${index === 0 ? 'Add files at the start' : `Add files after page ${index}`} (right-click for more)`}
         aria-label={index === 0 ? 'Insert at the start' : `Insert after page ${index}`}
         data-testid={`gap-add-${index}`}
-        onClick={(e) => {
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          onMenu(r.right + 4, r.top);
+        onClick={onPick}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onMenu(e.clientX + 4, e.clientY);
         }}
       >
-        <Icon name="plus" size={14} />
+        <Icon name="plus" size={18} strokeWidth={2.2} />
       </button>
     </div>
   );
@@ -370,14 +380,14 @@ const Thumb = memo(function Thumb(p: ThumbProps) {
         )}
         {failed && <div className="thumb-error">Cannot preview</div>}
         <div className="thumb-actions" onClick={(e) => e.stopPropagation()}>
-          <button type="button" title="Rotate left" aria-label={`Rotate page ${p.index + 1} left`} onClick={() => ctl.rotatePages([p.page.id], -90)}>
-            <Icon name="rotateLeft" size={14} />
+          <button type="button" className="tone tone-blue" title="Rotate left" aria-label={`Rotate page ${p.index + 1} left`} onClick={() => ctl.rotatePages([p.page.id], -90)}>
+            <Icon name="rotateLeft" size={18} />
           </button>
-          <button type="button" title="Rotate right" aria-label={`Rotate page ${p.index + 1} right`} onClick={() => ctl.rotatePages([p.page.id], 90)}>
-            <Icon name="rotateRight" size={14} />
+          <button type="button" className="tone tone-blue" title="Rotate right" aria-label={`Rotate page ${p.index + 1} right`} onClick={() => ctl.rotatePages([p.page.id], 90)}>
+            <Icon name="rotateRight" size={18} />
           </button>
-          <button type="button" title="Delete page" aria-label={`Delete page ${p.index + 1}`} data-testid={`thumb-delete-${p.index + 1}`} onClick={() => deletePagesWithUndo(ctl, [p.page.id])}>
-            <Icon name="trash" size={14} />
+          <button type="button" className="tone tone-red" title="Delete page" aria-label={`Delete page ${p.index + 1}`} data-testid={`thumb-delete-${p.index + 1}`} onClick={() => deletePagesWithUndo(ctl, [p.page.id])}>
+            <Icon name="trash" size={18} />
           </button>
         </div>
         {p.selected && (

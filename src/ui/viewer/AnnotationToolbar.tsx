@@ -4,7 +4,8 @@ import { getPage } from '../../core/operations';
 import type { Annotation, FontFamily, TextAnnotation } from '../../core/types';
 import { FONT_LABEL } from '../../engine/textLayout';
 import { ColorPicker, IconButton, MOD, Slider, useApp, useView } from '../components';
-import { Icon, type IconName } from '../Icon';
+import { Icon, toneClass, type IconName } from '../Icon';
+import { convertHandwriting } from '../handwriting';
 import { ui, useUi, type Tool, type ToolSettings } from '../uiStore';
 import { TYPE_LABEL, applyStyle, type StylePatch } from './annotationFactory';
 
@@ -48,7 +49,9 @@ export const TOOLS: ToolDef[][] = [
 export const TOOL_BY_KEY: Record<string, Tool> = Object.fromEntries(TOOLS.flat().map((t) => [t.key.toLowerCase(), t.tool]));
 
 export function AnnotationToolbar() {
+  const { ctl } = useApp();
   const tool = useUi((s) => s.tool);
+  const recognising = useUi((s) => s.recognising);
   const pending = useUi((s) => s.pendingImage);
   return (
     <div className="annot-toolbar" role="toolbar" aria-label="Editing tools">
@@ -59,7 +62,7 @@ export function AnnotationToolbar() {
               <button
                 key={t.tool}
                 type="button"
-                className={`tool-btn ${tool === t.tool ? 'is-active' : ''}`}
+                className={`tool-btn ${toneClass(t.icon)} ${tool === t.tool ? 'is-active' : ''}`}
                 title={`${t.label} (${t.key}) — ${t.hint}`}
                 aria-label={t.label}
                 aria-pressed={tool === t.tool}
@@ -69,7 +72,9 @@ export function AnnotationToolbar() {
                   if (t.tool === 'image' && !pending) document.getElementById('image-picker')?.click();
                 }}
               >
-                <Icon name={t.icon} size={19} />
+                <span className="tool-chip">
+                  <Icon name={t.icon} size={20} />
+                </span>
                 <span className="tool-label">{t.label}</span>
               </button>
             ))}
@@ -78,14 +83,30 @@ export function AnnotationToolbar() {
         <div className="tool-group">
           <button
             type="button"
-            className="tool-btn"
+            className={`tool-btn ${toneClass('signature')}`}
             title="Signature — draw, type or upload your signature, then click to place it"
             aria-label="Signature"
             data-testid="tool-signature"
             onClick={() => ui.openDialog({ kind: 'signature' })}
           >
-            <Icon name="signature" size={19} />
+            <span className="tool-chip">
+              <Icon name="signature" size={20} />
+            </span>
             <span className="tool-label">Sign</span>
+          </button>
+          <button
+            type="button"
+            className={`tool-btn ${toneClass('wand')} ${recognising ? 'is-busy' : ''}`}
+            title="Auto detect — turn your handwriting (Pen strokes) into typed text. Select strokes first to convert only those; otherwise the whole page is converted."
+            aria-label="Auto detect handwriting"
+            data-testid="tool-autodetect"
+            disabled={recognising}
+            onClick={() => void convertHandwriting(ctl)}
+          >
+            <span className="tool-chip">
+              <Icon name="wand" size={20} />
+            </span>
+            <span className="tool-label">{recognising ? 'Reading…' : 'Auto detect'}</span>
           </button>
         </div>
       </div>
@@ -187,6 +208,7 @@ function ToolOptions() {
           <Slider label="Thickness" value={s.penWidth} min={0.5} max={30} step={0.5} onChange={(v) => upd({ penWidth: v })} format={(v) => `${v}px`} testId="pen-width" />
           <Slider label="Opacity" value={s.penOpacity} min={0.1} max={1} step={0.05} onChange={(v) => upd({ penOpacity: v })} format={(v) => `${Math.round(v * 100)}%`} />
           <WidthPresets value={s.penWidth} onChange={(v) => upd({ penWidth: v })} />
+          <ShapeMode value={s.penShapes} onChange={(v) => upd({ penShapes: v })} />
         </>
       );
       break;
@@ -196,6 +218,7 @@ function ToolOptions() {
           <ColorPicker label="Marker colour" value={s.markerColor} presets={HIGHLIGHT_COLORS} onChange={(c) => c && upd({ markerColor: c })} />
           <Slider label="Thickness" value={s.markerWidth} min={4} max={40} step={1} onChange={(v) => upd({ markerWidth: v })} format={(v) => `${v}px`} />
           <Slider label="Opacity" value={s.markerOpacity} min={0.1} max={1} step={0.05} onChange={(v) => upd({ markerOpacity: v })} format={(v) => `${Math.round(v * 100)}%`} />
+          <ShapeMode value={s.penShapes} onChange={(v) => upd({ penShapes: v })} />
         </>
       );
       break;
@@ -337,6 +360,26 @@ function TextOptions({
       <span className="opt-label">Box</span>
       <ColorPicker label="Background" value={a.background} presets={[{ name: 'White', value: '#ffffff' }, { name: 'Yellow', value: '#fff3a3' }]} allowNone onChange={(c) => onChange({ background: c })} />
     </>
+  );
+}
+
+const SHAPE_MODES: { v: ToolSettings['penShapes']; label: string; hint: string }[] = [
+  { v: 'auto', label: 'Auto', hint: 'Straighten lines and snap clear circles, boxes, arcs and angles automatically. Hold still at the end of any stroke to snap it too.' },
+  { v: 'hold', label: 'Hold', hint: 'Keep strokes freehand (smoothed); hold still at the end of a stroke to snap it to a shape.' },
+  { v: 'off', label: 'Off', hint: 'Never snap to shapes (strokes are still smoothed).' },
+];
+
+/** Smart shapes: how freehand strokes are cleaned up. */
+function ShapeMode({ value, onChange }: { value: ToolSettings['penShapes']; onChange: (v: ToolSettings['penShapes']) => void }) {
+  return (
+    <div className="seg" role="radiogroup" aria-label="Smart shapes" data-testid="shape-mode">
+      <span className="seg-label">Smart shapes</span>
+      {SHAPE_MODES.map((m) => (
+        <button key={m.v} type="button" role="radio" aria-checked={value === m.v} className={`seg-btn ${value === m.v ? 'is-active' : ''}`} title={m.hint} onClick={() => onChange(m.v)} data-testid={`shape-mode-${m.v}`}>
+          {m.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

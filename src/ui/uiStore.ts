@@ -29,6 +29,8 @@ export interface ToolSettings {
   penColor: string;
   penWidth: number;
   penOpacity: number;
+  /** Freehand clean-up: 'auto' snaps clear shapes, 'hold' only when you pause at the end, 'off' never. */
+  penShapes: 'auto' | 'hold' | 'off';
   markerColor: string;
   markerWidth: number;
   markerOpacity: number;
@@ -57,6 +59,7 @@ export const DEFAULT_SETTINGS: ToolSettings = {
   penColor: '#e11d2a',
   penWidth: 3,
   penOpacity: 1,
+  penShapes: 'auto',
   markerColor: '#ffe14d',
   markerWidth: 14,
   markerOpacity: 0.45,
@@ -117,6 +120,8 @@ export interface UiState {
   pendingImage: PendingImage | null;
   /** Bumped to ask the viewer to scroll the active page into view. */
   scrollRequest: number;
+  /** Handwriting -> text is running. */
+  recognising: boolean;
 }
 
 const SETTINGS_KEY = 'pdf-workspace:tool-settings';
@@ -142,6 +147,7 @@ class UiStore {
     selectedAnns: null,
     editDraft: null,
     dialog: null,
+    recognising: false,
     historyOpen: false,
     sidebarOpen: true,
     pendingImage: null,

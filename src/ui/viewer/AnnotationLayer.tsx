@@ -15,12 +15,13 @@ import {
   type Matrix,
 } from '../../core/geometry';
 import { newId } from '../../core/ids';
-import { simplifyStroke } from '../../core/paths';
+import type { RecognisedShape } from '../../core/shapes';
+import { recogniseShape } from '../../core/shapes';
 import type { Annotation, AnnotationId, ImageAnnotation, LineAnnotation, Page, Rect, Rotation } from '../../core/types';
 import { useApp } from '../components';
 import { ui, useUi } from '../uiStore';
 import { AnnotationShape } from './AnnotationShape';
-import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newText } from './annotationFactory';
+import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newText, shapeInk, strokeFrom } from './annotationFactory';
 
 /**
  * The interactive annotation layer of one page: an SVG in DISPLAY space (points after
@@ -33,7 +34,18 @@ import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitT
 type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'p1' | 'p2';
 
 type Gesture =
-  | { kind: 'ink'; tool: 'pen' | 'marker'; points: number[]; pressures: number[]; simulate: boolean }
+  | {
+      kind: 'ink';
+      tool: 'pen' | 'marker';
+      points: number[];
+      pressures: number[];
+      simulate: boolean;
+      /** Screen position where the pointer last settled, for hold-to-snap. */
+      anchor: [number, number];
+      timer: ReturnType<typeof setTimeout> | null;
+      /** Set when the user held still at the end: the stroke becomes this shape. */
+      snap: RecognisedShape | null;
+    }
   | { kind: 'box'; tool: (typeof BOX_TOOLS)[number]; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'line'; tool: 'line' | 'arrow'; x0: number; y0: number; x1: number; y1: number }
   | { kind: 'place'; what: 'text' | 'image'; x0: number; y0: number; x1: number; y1: number }
@@ -161,7 +173,9 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     ui.clearAnns();
     if (INK_TOOLS.includes(tool)) {
       const simulate = e.pointerType !== 'pen';
-      gesture.current = { kind: 'ink', tool: tool as 'pen' | 'marker', points: [x, y], pressures: [pressureOf(e.nativeEvent)], simulate };
+      const g: Gesture = { kind: 'ink', tool: tool as 'pen' | 'marker', points: [x, y], pressures: [pressureOf(e.nativeEvent)], simulate, anchor: [e.clientX, e.clientY], timer: null, snap: null };
+      gesture.current = g;
+      armHold(g);
       setCreating(inkFrom(tool as 'pen' | 'marker', settings, [x, y], [pressureOf(e.nativeEvent)], simulate));
     } else if (BOX_TOOLS.includes(tool)) {
       gesture.current = { kind: 'box', tool, x0: x, y0: y, x1: x, y1: y };
@@ -207,6 +221,25 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     if (changed) setErased(new Set(g.ids));
   }
 
+  /**
+   * Hold-to-snap: when the pointer rests (still pressed) for half a second at the end of
+   * a stroke, the stroke turns into the shape it resembles — the preview shows it at
+   * once, and releasing keeps it.
+   */
+  function armHold(g: Extract<Gesture, { kind: 'ink' }>) {
+    if (g.timer) clearTimeout(g.timer);
+    g.timer = null;
+    if (settings.penShapes === 'off') return;
+    g.timer = setTimeout(() => {
+      g.timer = null;
+      if (gesture.current !== g || g.snap) return;
+      const shape = recogniseShape(g.points, { unit: 1 / scale, mode: 'hold' });
+      if (!shape) return;
+      g.snap = shape;
+      setCreating(shapeInk(g.tool, settings, shape));
+    }, 550);
+  }
+
   function onPointerMove(e: RPointerEvent<SVGSVGElement>) {
     const g = gesture.current;
     if (tool === 'eraser') setHover(displayPoint(e));
@@ -219,7 +252,19 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
           g.points.push(...pagePoint(ev));
           g.pressures.push(pressureOf(ev));
         }
-        setCreating(inkFrom(g.tool, settings, g.points.slice(), g.pressures.slice(), g.simulate));
+        const moved = Math.hypot(e.clientX - g.anchor[0], e.clientY - g.anchor[1]);
+        if (g.snap) {
+          // Moving on after a snap: back to freehand.
+          if (moved > 10) {
+            g.snap = null;
+            g.anchor = [e.clientX, e.clientY];
+            armHold(g);
+          } else break;
+        } else if (moved > 3) {
+          g.anchor = [e.clientX, e.clientY];
+          armHold(g);
+        }
+        setCreating(strokeFrom(g.tool, settings, g.points, g.pressures, g.simulate, 1 / scale, false));
         break;
       }
       case 'box':
@@ -302,8 +347,9 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
     const [x, y] = pagePoint(e);
     switch (g.kind) {
       case 'ink': {
-        const st = simplifyStroke(g.points, g.pressures, 0.35 / scale);
-        ctl.addAnnotation(page.id, inkFrom(g.tool, settings, st.points, st.pressures, g.simulate), g.tool === 'marker' ? 'Drew with the marker' : `Drew with the pen (${settings.penWidth}px)`);
+        if (g.timer) clearTimeout(g.timer);
+        const ann = g.snap ? shapeInk(g.tool, settings, g.snap) : strokeFrom(g.tool, settings, g.points, g.pressures, g.simulate, 1 / scale, true);
+        ctl.addAnnotation(page.id, ann, g.tool === 'marker' ? 'Drew with the marker' : `Drew with the pen (${settings.penWidth}px)`);
         setCreating(null);
         break;
       }

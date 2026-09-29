@@ -177,3 +177,73 @@ test('drawing on a partly scrolled page never jumps; ink varies in width', async
   }
   expect(ink.pressures?.length).toBe(ink.points.length / 2);
 });
+
+test('auto detect turns handwriting into editable text, in one undo step', async ({ page }) => {
+  const posted: string[][] = [];
+  await page.route('**/api/handwriting', async (route) => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { ai: true } });
+    const { images } = route.request().postDataJSON() as { images: string[] };
+    posted.push(images);
+    // First block is words, second block is a drawing the recogniser rejects.
+    return route.fulfill({ json: { texts: images.map((_, i) => (i === 0 ? 'Approved by Leo' : '<none>')) } });
+  });
+  await page.getByTestId('tool-pen').click();
+  // "writing": a few strokes close together near the top
+  await drag(page, 1, [0.2, 0.2], [0.23, 0.23], 6);
+  await drag(page, 1, [0.24, 0.2], [0.27, 0.23], 6);
+  await drag(page, 1, [0.28, 0.2], [0.31, 0.23], 6);
+  // a doodle far away
+  await drag(page, 1, [0.7, 0.8], [0.8, 0.9], 6);
+  expect((await anns(page, 1)).map((a) => a.type)).toEqual(['ink', 'ink', 'ink', 'ink']);
+
+  await page.getByTestId('tool-autodetect').click();
+  await expect.poll(async () => (await anns(page, 1)).map((a) => a.type).sort()).toEqual(['ink', 'text']);
+  expect(posted).toHaveLength(1);
+  expect(posted[0]).toHaveLength(2); // two blocks: the writing and the doodle
+  expect(posted[0][0].startsWith('iVBOR')).toBe(true); // a PNG of the strokes only
+  const text = (await anns(page, 1)).find((a) => a.type === 'text') as { text: string; rect: { y: number } };
+  expect(text.text).toBe('Approved by Leo');
+  await expect(page.getByText('Handwriting converted to text.')).toBeVisible();
+
+  // One undo brings the handwriting back.
+  await page.getByTestId('undo').click();
+  expect((await anns(page, 1)).map((a) => a.type)).toEqual(['ink', 'ink', 'ink', 'ink']);
+});
+
+test('smart shapes: a shaky circle becomes a perfect one; holding still snaps a small arc', async ({ page }) => {
+  await page.getByTestId('tool-pen').click();
+  await expect(page.getByTestId('shape-mode-auto')).toHaveAttribute('aria-checked', 'true');
+  const box = (await page.locator('[data-page-number="1"] .ann-layer').boundingBox())!;
+  const cx = box.x + box.width * 0.5;
+  const cy = box.y + box.height * 0.4;
+  const R = 80;
+  await page.mouse.move(cx + R, cy);
+  await page.mouse.down();
+  for (let i = 1; i <= 64; i++) {
+    const t = (i / 64) * Math.PI * 2.03;
+    const wob = Math.sin(i * 2.7) * 3; // hand shake
+    await page.mouse.move(cx + (R + wob) * Math.cos(t), cy + (R + wob) * Math.sin(t));
+  }
+  await page.mouse.up();
+  const [circle] = (await anns(page, 1)) as { points: number[] }[];
+  const closedLoop = circle.points.slice(0, -2); // the last point repeats the first
+  const xs = closedLoop.filter((_, i) => i % 2 === 0);
+  const ys = closedLoop.filter((_, i) => i % 2 === 1);
+  const mx = xs.reduce((a, b) => a + b) / xs.length;
+  const my = ys.reduce((a, b) => a + b) / ys.length;
+  const radii = xs.map((x, i) => Math.hypot(x - mx, ys[i] - my));
+  expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(Math.max(...radii) * 0.005); // perfectly round
+
+  // A small hand-sized arc stays freehand... unless the user holds still at the end.
+  await page.mouse.move(box.x + 120 + 25 * Math.cos(Math.PI * 0.6), box.y + 400 + 25 * Math.sin(Math.PI * 0.6));
+  await page.mouse.down();
+  for (let i = 1; i <= 20; i++) {
+    const t = Math.PI * 0.6 + (i / 20) * Math.PI * 0.9;
+    await page.mouse.move(box.x + 120 + 25 * Math.cos(t) + Math.sin(i * 3) * 0.8, box.y + 400 + 25 * Math.sin(t));
+  }
+  await page.waitForTimeout(800); // hold
+  await page.mouse.up();
+  const arc = ((await anns(page, 1)) as { points: number[]; pressures?: number[] }[])[1];
+  expect(arc.pressures).toBeUndefined(); // snapped shapes are clean uniform strokes
+  expect(arc.points.length).toBeGreaterThan(20);
+});

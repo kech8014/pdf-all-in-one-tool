@@ -13,7 +13,7 @@ undo history across everything.
 | To… | Do this |
 |---|---|
 | Start | Drop PDFs or images on the start screen, or **Choose files**. Several files are merged in the order you pick them. |
-| Add more | **Add files** (appends), or drop files onto the page list *between two pages* to insert them exactly there. |
+| Add more | **Add files** (appends). Click the green **+** between two pages to pick files and insert them exactly there (right-click the **+** for a blank page or to pick only some pages), or drop files onto that spot. |
 | Insert at a position | **Insert ▸ PDF pages / Images / Blank page**, the **+** that appears between thumbnails, or right-click a page ▸ *Insert before/after*. The dialog shows the other file's pages so you can pick all or some (`1-3, 5`). |
 | Select pages | Click; **Ctrl/⌘-click** to add; **Shift-click** for a range; **Ctrl/⌘ A** for all. |
 | Reorder | Drag thumbnails (the **Organize** view shows a big grid), or **Alt + ↑/↓**. |
@@ -23,6 +23,8 @@ undo history across everything.
 | Move pages to another workspace | **More ▸ Copy / move to another workspace…** |
 | Compress | **Compress** ▸ Lossless / Balanced / Strong. You keep editing the compressed document; **Undo** reverts it. |
 | Annotate | Pick a tool: Text, Pen, Marker, Eraser, Highlight, Underline, Strikethrough, Rectangle, Ellipse, Line, Arrow, Whiteout, Sticky note, Image, **Sign**. Options (colour — red is a preset — thickness, opacity, font, size, bold, italic, alignment) appear under the toolbar. |
+| Clean drawing | Pen and marker strokes are smoothed as you draw. **Smart shapes** (pen options): *Auto* straightens lines (snapping to 0°/45°/90° when close) and turns clear circles, ellipses, rectangles, triangles, arcs and angles into perfect ones — handwriting-sized strokes are left alone. Hold still for half a second at the end of any stroke to snap it on demand. *Hold* snaps only on hold; *Off* never snaps. |
+| Handwriting → text | Write with the Pen, then **Auto detect**: the handwriting on the page (or just the strokes you selected) becomes typed, editable text in the same place, size and colour. Drawings and ticks are left as they are. One **Undo** brings the handwriting back. |
 | Edit an annotation | **Select** tool: click to select, drag to move, drag the handles to resize, double-click text to edit it, **Delete** to remove. **Ctrl/⌘ C / V / D** copy, paste (onto any page), duplicate. **Ctrl/⌘ ] / [** bring to front / send to back. |
 | Zoom | The zoom bar (type any %, or Fit width / Fit page), **Ctrl/⌘ + scroll**, **Ctrl/⌘ + / −**. Hold **Space** and drag (or use the Pan tool) to move around. |
 | Undo anything | **Ctrl/⌘ Z** / **Ctrl/⌘ Shift Z**, or open **History** and click any earlier step. |
@@ -44,6 +46,16 @@ npm run test:e2e     # browser tests (Playwright/Chromium)
 
 Node 22+. Deploys as a static site (Vercel, Netlify, any static host): build command
 `npm run build`, output directory `dist`.
+
+### Handwriting recognition
+
+**Auto detect** reads handwriting with Claude's vision model through the serverless
+function `api/handwriting.ts` (deployed automatically on Vercel). Set the environment
+variable **`ANTHROPIC_API_KEY`** in the Vercel project (Settings → Environment Variables)
+to enable it; `HANDWRITING_MODEL` optionally overrides the model. Only an image of the pen
+strokes is sent — never the PDF. Without a key (or when running `npm run dev`), the app
+falls back to on-device OCR (Tesseract, loaded on first use), which reads neat print but
+is much weaker on joined-up handwriting.
 
 ## How it works
 

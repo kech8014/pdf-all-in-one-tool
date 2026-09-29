@@ -52,7 +52,9 @@ rejected before it can reach history, storage or export.
 | Undo/redo | `src/core/history.ts` |
 | Invariants | `src/core/validation.ts` |
 | Coordinates (page ↔ display ↔ PDF), hit testing | `src/core/geometry.ts` |
-| Stroke smoothing (shared by screen and PDF) | `src/core/paths.ts` |
+| Stroke smoothing (shared by screen and PDF) | `src/core/paths.ts`, `src/core/ink.ts` (variable-width ink) |
+| Freehand clean-up: smoothing, smart shapes (line/arc/circle/ellipse/rectangle/triangle/angle) | `src/core/shapes.ts` |
+| Handwriting → text: grouping strokes, placing text | `src/core/handwriting.ts`, `src/ui/handwriting.ts`, `api/handwriting.ts` (Vercel Function) |
 | Errors with user-facing messages | `src/core/errors.ts` |
 | PDF parsing, decryption, image → page | `src/engine/ingest.ts`, `imageInfo.ts` |
 | Browser image decoding (WebP, GIF, BMP, TIFF, AVIF…) | `src/engine/browserImages.ts` |

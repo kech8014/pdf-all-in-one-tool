@@ -157,16 +157,13 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
   await page.getByTestId('page-list-grid').getByTestId('thumb-2').click();
   await page.getByTestId('delete-pages').click(); // removes A-1
   expect(await pageCount(page)).toBe(13);
-  await page.getByTestId('gap-add-2').click();
-  await page.getByTestId('menu-insert-pdf').click();
-  await chooseFiles(page, () => page.getByTestId('insert-choose').click(), ['D.pdf']);
-  await page.getByTestId('pick-2').click(); // untick page 2 of D
-  await page.getByTestId('insert-confirm').click();
-  expect(await stateLabels(page)).toEqual(['B-6', 'A-2', 'D-1', 'D-3', 'A-4', 'A-5', 'A-6', 'C-1', 'C-2', 'A-8', '?', 'B-1', 'B-3', 'B-4', 'B-5']);
-  // the annotated page (now 13) goes to the front by drag and drop in the grid
+  // the "+" between pages opens the file picker directly and inserts right there
+  await chooseFiles(page, () => page.getByTestId('gap-add-2').click(), ['D.pdf']);
+  await expect.poll(() => stateLabels(page)).toEqual(['B-6', 'A-2', 'D-1', 'D-2', 'D-3', 'A-4', 'A-5', 'A-6', 'C-1', 'C-2', 'A-8', '?', 'B-1', 'B-3', 'B-4', 'B-5']);
+  // the annotated page (now 14) goes to the front by drag and drop in the grid
   const grid = page.getByTestId('page-list-grid');
-  await grid.getByTestId('thumb-13').click();
-  await grid.getByTestId('thumb-13').dragTo(grid.getByTestId('thumb-1'), { targetPosition: { x: 6, y: 40 } });
+  await grid.getByTestId('thumb-14').click();
+  await grid.getByTestId('thumb-14').dragTo(grid.getByTestId('thumb-1'), { targetPosition: { x: 6, y: 40 } });
   const labels = await stateLabels(page);
   expect(labels[0]).toBe('B-3');
   expect(await pageIdAt(page, 1)).toBe(p12);
@@ -203,7 +200,7 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
   // 14. a refresh does not lose the workspace
   await page.waitForFunction(() => window.__pdfws!.ctl.view.saveStatus === 'saved');
   await page.reload();
-  await expect(page.getByTestId('thumb-15')).toBeVisible();
+  await expect(page.getByTestId('thumb-16')).toBeVisible();
   expect(await stateLabels(page)).toEqual(expected);
   expect((await annotationsOn(page, p12)).length).toBe(5);
   // ...and undo history survived the reload too

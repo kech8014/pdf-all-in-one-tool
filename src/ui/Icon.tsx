@@ -12,8 +12,10 @@ const PATHS: Record<string, string> = {
   blank: 'M6 3h12v18H6z',
   upload: 'M12 16V4M7 9l5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
   download: 'M12 4v12M7 11l5 5 5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
-  rotateLeft: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
-  rotateRight: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5',
+  // A page with a curved arrow over it: reads as "rotate this page", not "undo".
+  rotateLeft: 'M10 11h10v10H10zM14 4h-3a7 7 0 0 0-7 7v2M1 10l3 3 3-3',
+  rotateRight: 'M4 11h10v10H4zM10 4h3a7 7 0 0 1 7 7v2M17 10l3 3 3-3',
+  wand: 'M4 20L15 9M13 7l2-2 4 4-2 2zM18 2v3M16.5 3.5h3M21 13v3M19.5 14.5h3M7 3v3M5.5 4.5h3',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   extract: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5M14 3v5h5V11M16 15h6M19 12l3 3-3 3',
@@ -71,6 +73,68 @@ const PATHS: Record<string, string> = {
 };
 
 export type IconName = keyof typeof PATHS;
+
+/**
+ * Colour family of each action, so buttons can be told apart at a glance: page layout
+ * (rotate, move) is blue, adding is green, destructive is red, copies are violet, file
+ * size is amber, text is indigo, and so on. Buttons use it as a tinted background chip.
+ */
+export type Tone = 'blue' | 'green' | 'red' | 'violet' | 'amber' | 'teal' | 'indigo' | 'pink' | 'slate' | 'yellow';
+export const TONE: Partial<Record<IconName, Tone>> = {
+  plus: 'green',
+  filePlus: 'green',
+  image: 'green',
+  blank: 'green',
+  upload: 'green',
+  download: 'green',
+  rotateLeft: 'blue',
+  rotateRight: 'blue',
+  move: 'blue',
+  grid: 'blue',
+  sidebar: 'slate',
+  copy: 'violet',
+  extract: 'violet',
+  replace: 'violet',
+  trash: 'red',
+  eraser: 'pink',
+  compress: 'amber',
+  history: 'amber',
+  undo: 'slate',
+  redo: 'slate',
+  help: 'slate',
+  more: 'slate',
+  cursor: 'slate',
+  hand: 'slate',
+  text: 'indigo',
+  edit: 'indigo',
+  bold: 'indigo',
+  italic: 'indigo',
+  alignLeft: 'indigo',
+  alignCenter: 'indigo',
+  alignRight: 'indigo',
+  pen: 'blue',
+  marker: 'amber',
+  highlight: 'yellow',
+  underline: 'violet',
+  strikeout: 'violet',
+  rect: 'teal',
+  ellipse: 'teal',
+  line: 'teal',
+  arrow: 'teal',
+  whiteout: 'slate',
+  note: 'amber',
+  signature: 'indigo',
+  wand: 'pink',
+  sparkle: 'pink',
+  front: 'teal',
+  back: 'teal',
+  zoomIn: 'slate',
+  zoomOut: 'slate',
+  fitWidth: 'slate',
+  fitPage: 'slate',
+  folder: 'blue',
+};
+export const toneClass = (name: IconName) => (TONE[name] ? `tone tone-${TONE[name]}` : '');
 
 export function Icon({ name, size = 18, ...rest }: { name: IconName; size?: number } & SVGProps<SVGSVGElement>) {
   return (

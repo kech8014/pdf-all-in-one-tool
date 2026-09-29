@@ -1,5 +1,7 @@
 import { localSize, normalizeRect } from '../../core/geometry';
 import { newId } from '../../core/ids';
+import { simplifyPoints, simplifyStroke } from '../../core/paths';
+import { recogniseShape, smoothFreehand, speedPressures, type RecognisedShape } from '../../core/shapes';
 import type { Annotation, NoteAnnotation, Rect, Rotation, TextAnnotation } from '../../core/types';
 import { layoutText } from '../../engine/textLayout';
 import type { Tool, ToolSettings } from '../uiStore';
@@ -28,6 +30,39 @@ export function inkFrom(tool: 'pen' | 'marker', s: ToolSettings, points: number[
     ink.simulatePressure = simulate;
   }
   return ink;
+}
+
+/** A recognised shape, drawn as a clean uniform stroke in the tool's style. */
+export function shapeInk(tool: 'pen' | 'marker', s: ToolSettings, shape: RecognisedShape): Annotation {
+  return inkFrom(tool, s, shape.points);
+}
+
+/**
+ * Turn the raw pointer samples of a finished (or in-progress) stroke into the annotation:
+ * a snapped shape when the stroke clearly is one, otherwise a smoothed freehand stroke.
+ * `unit` = one screen pixel in page units. `recognise` is false for the live preview.
+ */
+export function strokeFrom(
+  tool: 'pen' | 'marker',
+  s: ToolSettings,
+  raw: number[],
+  rawPressures: number[],
+  simulate: boolean,
+  unit: number,
+  recognise: boolean,
+): Annotation {
+  if (recognise && s.penShapes === 'auto' && raw.length >= 4) {
+    const shape = recogniseShape(raw, { unit, mode: 'auto' });
+    if (shape) return shapeInk(tool, s, shape);
+  }
+  const strength = simulate ? 3 : 1.2; // mouse and finger shake; a stylus is steady
+  if (tool === 'marker') return inkFrom(tool, s, simplifyPoints(smoothFreehand(raw, undefined, unit, strength).points, 0.35 * unit));
+  const simp = simplifyStroke(raw, rawPressures, 0.35 * unit);
+  // Width comes from the stroke as drawn (pressure, or speed for a mouse) BEFORE smoothing.
+  const pressures = simulate ? speedPressures(simp.points, s.penWidth * 1.35) : simp.pressures;
+  const sm = smoothFreehand(simp.points, pressures, unit, strength);
+  const out = simplifyStroke(sm.points, sm.pressures!, 0.35 * unit);
+  return inkFrom(tool, s, out.points, out.pressures, false);
 }
 
 /** Annotation for a box tool dragged from (x1,y1) to (x2,y2) in page space. */

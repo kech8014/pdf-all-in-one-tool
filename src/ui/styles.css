@@ -2355,3 +2355,233 @@ kbd {
     margin-top: 28px;
   }
 }
+
+/* ============================ colour tones ============================ */
+/* Each action family has its own colour: a tinted chip behind a saturated icon. */
+.tone-blue { --tone: #2563eb; }
+.tone-green { --tone: #16a34a; }
+.tone-red { --tone: #dc2626; }
+.tone-violet { --tone: #7c3aed; }
+.tone-amber { --tone: #d97706; }
+.tone-teal { --tone: #0d9488; }
+.tone-indigo { --tone: #4f46e5; }
+.tone-pink { --tone: #db2777; }
+.tone-slate { --tone: #475569; }
+.tone-yellow { --tone: #ca8a04; }
+@media (prefers-color-scheme: dark) {
+  .tone-blue { --tone: #60a5fa; }
+  .tone-green { --tone: #4ade80; }
+  .tone-red { --tone: #f87171; }
+  .tone-violet { --tone: #a78bfa; }
+  .tone-amber { --tone: #fbbf24; }
+  .tone-teal { --tone: #2dd4bf; }
+  .tone-indigo { --tone: #818cf8; }
+  .tone-pink { --tone: #f472b6; }
+  .tone-slate { --tone: #94a3b8; }
+  .tone-yellow { --tone: #facc15; }
+}
+.tone {
+  --tone-soft: color-mix(in srgb, var(--tone) 13%, var(--panel));
+  --tone-hover: color-mix(in srgb, var(--tone) 22%, var(--panel));
+}
+
+/* toolbar buttons: bigger, and tinted */
+.btn {
+  height: 40px;
+}
+.btn-icon {
+  width: 40px;
+  border-radius: 13px;
+}
+.btn.tone {
+  color: var(--tone);
+}
+.btn-icon.tone {
+  background: var(--tone-soft);
+}
+.btn-labelled.tone {
+  color: var(--text);
+}
+.btn-labelled.tone svg:first-child {
+  color: var(--tone);
+}
+.btn.tone:hover:not(:disabled) {
+  background: var(--tone-hover);
+  border-color: transparent;
+}
+.btn.tone.is-active {
+  background: var(--tone);
+  color: #fff;
+}
+.btn.tone.is-active svg {
+  color: #fff;
+}
+.btn.tone:disabled {
+  opacity: 0.38;
+}
+.zoombar .btn-icon {
+  width: 34px;
+  height: 34px;
+}
+
+/* annotation tools: a coloured chip over the label */
+.tool-btn {
+  gap: 3px;
+  padding: 4px 4px 3px;
+  min-width: 58px;
+  color: var(--text);
+}
+.tool-btn:hover,
+.tool-btn.is-active {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+}
+.tool-chip {
+  width: 38px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  transition: background 0.12s, color 0.12s, transform 0.12s;
+}
+.tool-btn.tone .tool-chip {
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.tool-btn.tone:hover .tool-chip {
+  background: var(--tone-hover);
+  transform: translateY(-1px);
+}
+.tool-btn.tone.is-active .tool-chip {
+  background: var(--tone);
+  color: #fff;
+  box-shadow: 0 8px 18px -8px var(--tone);
+}
+.tool-btn.is-active .tool-label {
+  font-weight: 600;
+}
+
+/* thumbnail hover actions: large coloured circles, centred along the top of the page */
+.thumb-actions {
+  top: 8px;
+  right: auto;
+  left: 50%;
+  bottom: auto;
+  transform: translateX(-50%);
+  gap: 6px;
+  padding: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: 0 10px 24px -10px rgba(12, 12, 13, 0.45), 0 0 0 1px var(--border);
+}
+.thumb-actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--tone-soft);
+  color: var(--tone);
+  transition: background 0.12s, color 0.12s, transform 0.12s;
+}
+.thumb-actions button:hover {
+  background: var(--tone);
+  color: #fff;
+  transform: scale(1.06);
+}
+
+/* the "+" between pages: a big green button, dead centre in the gap */
+.gap-add {
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--panel);
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 6px 16px -6px rgba(22, 163, 74, 0.7);
+  transition: opacity 0.12s, transform 0.12s;
+}
+.gap-add:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+@media (hover: none) {
+  .gap-add {
+    opacity: 0.85;
+  }
+  .thumb-actions {
+    display: flex;
+  }
+}
+
+/* menu items carry the same colour chips */
+.menu-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--panel-2);
+}
+.menu-icon.tone {
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.menu-icon-pad {
+  width: 28px;
+  flex: none;
+}
+.menu-item {
+  padding: 5px 8px;
+}
+.tool-btn.is-busy .tool-chip {
+  animation: tone-pulse 1s ease-in-out infinite;
+}
+@keyframes tone-pulse {
+  50% {
+    background: var(--tone);
+    color: #fff;
+  }
+}
+/* segmented control (smart shapes) */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.seg-label {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 8px 0 6px;
+  white-space: nowrap;
+}
+.seg-btn {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--text);
+}
+.seg-btn:hover {
+  background: var(--panel);
+}
+.seg-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+/* room for the "+" between pages in the sidebar list */
+.gap-list {
+  height: 26px;
+}
+.gap-list .gap-add {
+  width: 30px;
+  height: 30px;
+}
+.thumb-caption {
+  margin-top: 2px;
+}

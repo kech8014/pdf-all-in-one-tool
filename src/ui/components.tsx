@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { createPortal } from 'react-dom';
 import type { WorkspaceController, WorkspaceView } from '../store/controller';
 import type { Session } from '../store/session';
-import { Icon, type IconName } from './Icon';
+import { Icon, toneClass, type IconName } from './Icon';
 
 /* --------------------------------- context -------------------------------- */
 
@@ -53,7 +53,7 @@ export function IconButton({
   return (
     <button
       type="button"
-      className={`btn ${showLabel ? 'btn-labelled' : 'btn-icon'} ${variant ? `btn-${variant}` : ''} ${active ? 'is-active' : ''} ${className ?? ''}`}
+      className={`btn ${showLabel ? 'btn-labelled' : 'btn-icon'} ${variant ? `btn-${variant}` : toneClass(icon)} ${active ? 'is-active' : ''} ${className ?? ''}`}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -61,7 +61,7 @@ export function IconButton({
       aria-pressed={active === undefined ? undefined : active}
       data-testid={testId}
     >
-      <Icon name={icon} />
+      <Icon name={icon} size={20} />
       {showLabel && <span>{label}</span>}
     </button>
   );
@@ -183,7 +183,13 @@ export function Menu({ x, y, items, onClose }: { x: number; y: number; items: Me
               it.onClick();
             }}
           >
-            {it.icon ? <Icon name={it.icon} size={16} /> : <span className="menu-icon-pad" />}
+            {it.icon ? (
+              <span className={`menu-icon ${it.danger ? 'tone tone-red' : toneClass(it.icon)}`}>
+                <Icon name={it.icon} size={17} />
+              </span>
+            ) : (
+              <span className="menu-icon-pad" />
+            )}
             <span className="menu-label">{it.label}</span>
             {it.shortcut && <kbd>{it.shortcut}</kbd>}
           </button>
@@ -203,7 +209,7 @@ export function MenuButton({ icon, label, items, showLabel = true, testId, varia
       <button
         ref={ref}
         type="button"
-        className={`btn ${showLabel ? 'btn-labelled' : 'btn-icon'} ${variant ? `btn-${variant}` : ''} ${open ? 'is-active' : ''}`}
+        className={`btn ${showLabel ? 'btn-labelled' : 'btn-icon'} ${variant ? `btn-${variant}` : toneClass(icon)} ${open ? 'is-active' : ''}`}
         aria-haspopup="menu"
         aria-expanded={!!open}
         title={label}
@@ -214,7 +220,7 @@ export function MenuButton({ icon, label, items, showLabel = true, testId, varia
           setOpen(open ? null : { x: r.left, y: r.bottom + 4 });
         }}
       >
-        <Icon name={icon} />
+        <Icon name={icon} size={20} />
         {showLabel && <span>{label}</span>}
         <Icon name="chevronDown" size={14} />
       </button>
