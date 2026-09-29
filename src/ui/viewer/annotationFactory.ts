@@ -2,7 +2,7 @@ import { annotationBounds, localSize, normalizeRect } from '../../core/geometry'
 import { newId } from '../../core/ids';
 import { simplifyPoints, simplifyStroke } from '../../core/paths';
 import { recogniseShape, smoothFreehand, speedPressures, type RecognisedShape } from '../../core/shapes';
-import type { Annotation, NoteAnnotation, Rect, Rotation, TextAnnotation } from '../../core/types';
+import type { Annotation, InkAnnotation, NoteAnnotation, Rect, Rotation, TextAnnotation } from '../../core/types';
 import { layoutText } from '../../engine/textLayout';
 import type { Tool, ToolSettings } from '../uiStore';
 
@@ -57,7 +57,7 @@ export function strokeIsIsolated(raw: number[], existing: Annotation[]): boolean
 
 /** A recognised shape, drawn as a clean uniform stroke in the tool's style. */
 export function shapeInk(tool: 'pen' | 'marker', s: ToolSettings, shape: RecognisedShape): Annotation {
-  return inkFrom(tool, s, shape.points);
+  return { ...(inkFrom(tool, s, shape.points) as InkAnnotation), shape: shape.kind };
 }
 
 /**

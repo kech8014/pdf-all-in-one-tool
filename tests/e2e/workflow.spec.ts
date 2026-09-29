@@ -57,6 +57,20 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
 
   // 1. PDF A + PDF B → merge
   await chooseFiles(page, () => page.getByTestId('empty-choose').click(), ['A.pdf', 'B.pdf']);
+  // Several files open "Organize PDFs" first: one card per file, in the chosen order.
+  await expect(page.getByTestId('file-list')).toBeVisible();
+  await expect(page.getByTestId('file-1')).toContainText('A.pdf');
+  await expect(page.getByTestId('file-2')).toContainText('B.pdf');
+  await expect(page.getByTestId('file-2')).toContainText('6 pages');
+  // Put B first, then change our mind: one undo step each.
+  await page.getByTestId('file-down-1').click();
+  await expect(page.getByTestId('file-1')).toContainText('B.pdf');
+  expect((await stateLabels(page)).slice(0, 2)).toEqual(['B-1', 'B-2']);
+  await page.getByTestId('undo').click();
+  await expect(page.getByTestId('file-1')).toContainText('A.pdf');
+  await page.getByTestId('files-done').click(); // shows the pages
+  await expect(page.getByTestId('page-list-grid')).toBeVisible();
+  await page.getByTestId('view-edit').click();
   await expect(page.getByTestId('thumb-14')).toBeVisible();
   expect(await stateLabels(page)).toEqual(['A-1', 'A-2', 'A-3', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8', 'B-1', 'B-2', 'B-3', 'B-4', 'B-5', 'B-6']);
 

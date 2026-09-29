@@ -110,7 +110,8 @@ export interface UiState {
   settings: ToolSettings;
   zoom: number;
   zoomMode: ZoomMode;
-  view: 'edit' | 'organize';
+  /** edit = page viewer, organize = pages grid, files = one card per imported file. */
+  view: 'edit' | 'organize' | 'files';
   selectedAnns: { pageId: PageId; ids: AnnotationId[] } | null;
   /** Text box or sticky note being edited (not in the document until committed). */
   editDraft: { pageId: PageId; ann: TextAnnotation | NoteAnnotation; isNew: boolean } | null;

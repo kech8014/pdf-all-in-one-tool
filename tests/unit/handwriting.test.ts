@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanRecognised, clusterInk, dominantColor, textForBlock } from '../../src/core/handwriting';
+import { cleanRecognised, clusterInk, dominantColor, splitLines, textForBlock } from '../../src/core/handwriting';
 import { localSize } from '../../src/core/geometry';
 import type { InkAnnotation } from '../../src/core/types';
 
@@ -32,6 +32,18 @@ describe('handwriting grouping', () => {
       return { ...a, points: pts };
     });
     expect(clusterInk(inks, 612, 792, 90)).toHaveLength(1);
+  });
+});
+
+describe('line splitting', () => {
+  it('splits a paragraph into its lines and keeps i-dots with their line', () => {
+    const l1 = [letter(100, 100), letter(111, 100), letter(122, 100)];
+    const dot = { ...letter(112, 92, 2), points: [112, 92, 113, 93] };
+    const l2 = [letter(100, 122), letter(111, 122)];
+    const [block] = clusterInk([...l2, dot, ...l1], 612, 792, 0);
+    const lines = splitLines(block, 612, 792, 0);
+    expect(lines.map((l) => l.inks.length)).toEqual([4, 2]);
+    expect(lines[0].box.y).toBeLessThan(lines[1].box.y);
   });
 });
 

@@ -1,9 +1,11 @@
+import type { WorkspaceController } from '../store/controller';
 import { useEffect, useRef, useState } from 'react';
 import * as H from '../core/history';
 import { getPage, usedSourceIds } from '../core/operations';
 import { translateAnnotation } from '../core/geometry';
 import type { WorkspaceSummary } from '../persistence/idb';
 import { formatBytes } from '../store/controller';
+import { FileList } from './organizer/FileList';
 import { ACCEPT_ANY, deletePagesWithUndo, extractPages, importFilesAt, insertionIndexAfterActive, pickFiles, readFiles } from './actions';
 import { IconButton, MOD, MenuButton, useApp, useView } from './components';
 import { Dialogs } from './dialogs/Dialogs';
@@ -60,7 +62,7 @@ export function Workspace() {
           </aside>
         )}
         <main className="center">
-          {empty ? <EmptyState /> : mode === 'edit' ? <Viewer /> : <OrganizeView />}
+          {empty ? <EmptyState /> : mode === 'edit' ? <Viewer /> : mode === 'files' ? <FileList /> : <OrganizeView />}
         </main>
         {historyOpen && <HistoryPanel />}
       </div>
@@ -216,7 +218,10 @@ function DocToolbar() {
           <Icon name="edit" size={16} /> Edit
         </button>
         <button type="button" role="tab" aria-selected={mode === 'organize'} className={mode === 'organize' ? 'is-active' : ''} onClick={() => ui.set({ view: 'organize' })} data-testid="view-organize">
-          <Icon name="grid" size={16} /> Organize
+          <Icon name="grid" size={16} /> Organize pages
+        </button>
+        <button type="button" role="tab" aria-selected={mode === 'files'} className={mode === 'files' ? 'is-active' : ''} onClick={() => ui.set({ view: 'files' })} data-testid="view-files">
+          <Icon name="folder" size={16} /> Organize PDFs
         </button>
       </div>
     </div>
@@ -356,6 +361,16 @@ function BusyOverlay() {
   );
 }
 
+/**
+ * Starting with several files opens "Organize PDFs" first, so the files can be put in
+ * order before looking at pages. A single file goes straight to the pages.
+ */
+async function startWith(ctl: WorkspaceController, files: File[]) {
+  if (!files.length) return;
+  await importFilesAt(ctl, files, 0);
+  if (files.length > 1 && ctl.state.pages.length) ui.set({ view: 'files' });
+}
+
 function EmptyState() {
   const { ctl, session, switchTo } = useApp();
   const { history } = useView();
@@ -364,7 +379,7 @@ function EmptyState() {
   useEffect(() => {
     void session.list().then((l) => setRecent(l.filter((w) => w.pageCount > 0 && w.id !== ctl.state.id).slice(0, 4)));
   }, [session, ctl]);
-  const choose = async () => importFilesAt(ctl, await pickFiles(ACCEPT_ANY), 0);
+  const choose = async () => startWith(ctl, await pickFiles(ACCEPT_ANY));
   return (
     <div className="home" data-testid="empty-state">
       <div className="home-grid" aria-hidden="true" />
@@ -418,7 +433,7 @@ function EmptyState() {
           e.preventDefault();
           e.stopPropagation();
           setOver(false);
-          void importFilesAt(ctl, [...e.dataTransfer.files], 0);
+          void startWith(ctl, [...e.dataTransfer.files]);
         }}
       >
         <div className="home-card-head">

@@ -119,6 +119,40 @@ export function movePagesToIndex(state: WorkspaceState, ids: PageId[], index: nu
   return movePages(state, ids, at >= rest.length ? null : rest[at].id);
 }
 
+/** One imported file as it currently sits in the document: its pages, in document order. */
+export interface DocumentGroup {
+  sourceId: SourceId;
+  pageIds: PageId[];
+}
+
+/**
+ * The document seen file by file: every source that still has pages, in the order its
+ * first page appears. Pages duplicated from a file belong to that file.
+ */
+export function documentGroups(state: WorkspaceState): DocumentGroup[] {
+  const groups = new Map<SourceId, PageId[]>();
+  for (const p of state.pages) {
+    const g = groups.get(p.sourceId);
+    if (g) g.push(p.id);
+    else groups.set(p.sourceId, [p.id]);
+  }
+  return [...groups.entries()].map(([sourceId, pageIds]) => ({ sourceId, pageIds }));
+}
+
+/**
+ * Put whole files in a new order. Each file's pages keep their own internal order and
+ * are brought together as one block. Files not named keep their relative order at the end.
+ */
+export function reorderDocuments(state: WorkspaceState, order: SourceId[]): WorkspaceState {
+  const groups = documentGroups(state);
+  const rank = new Map(order.map((id, i) => [id, i]));
+  const sorted = [...groups].sort((a, b) => (rank.get(a.sourceId) ?? order.length + groups.indexOf(a)) - (rank.get(b.sourceId) ?? order.length + groups.indexOf(b)));
+  const byId = new Map(state.pages.map((p) => [p.id, p]));
+  const next = sorted.flatMap((g) => g.pageIds.map((id) => byId.get(id)!));
+  const same = next.every((p, i) => p === state.pages[i]);
+  return same ? state : { ...state, pages: next };
+}
+
 export function rotatePages(state: WorkspaceState, ids: PageId[], delta: number): WorkspaceState {
   const set = new Set(ids);
   return mapPages(state, (p) => (set.has(p.id) ? { ...p, rotation: normRotation(p.rotation + delta) } : p));

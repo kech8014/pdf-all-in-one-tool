@@ -409,6 +409,21 @@ export class WorkspaceController {
     this.apply(next, label, { selection: ids });
   }
 
+  /** Put whole files in a new order (the "Organize PDFs" view). */
+  reorderDocuments(order: SourceId[]) {
+    const next = Ops.reorderDocuments(this.state, order);
+    if (next === this.state) return;
+    this.apply(next, 'Reordered files');
+  }
+
+  /** Remove every page that came from one file. */
+  removeDocument(sourceId: SourceId) {
+    const ids = this.state.pages.filter((p) => p.sourceId === sourceId).map((p) => p.id);
+    if (!ids.length) return;
+    const name = this.state.sources[sourceId]?.name ?? 'file';
+    this.apply(Ops.deletePages(this.state, ids), `Removed ${name}`, { selection: [] });
+  }
+
   rotatePages(ids: PageId[], delta: 90 | -90 | 180) {
     if (!ids.length) return;
     const dir = delta === 90 ? 'right' : delta === -90 ? 'left' : '180°';

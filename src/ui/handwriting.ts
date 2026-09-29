@@ -1,6 +1,5 @@
-import { clusterInk, cleanRecognised, dominantColor, isHandwritingCandidate, textForBlock, type InkBlock } from '../core/handwriting';
+import { clusterInk, cleanRecognised, dominantColor, isHandwritingCandidate, splitLines, textForBlock, type InkBlock } from '../core/handwriting';
 import { effectiveRotation, pageSize, pageToDisplayMatrix } from '../core/geometry';
-import { inkOutline, outlineSvg } from '../core/ink';
 import { getPage } from '../core/operations';
 import { segsToSvg, smoothStroke } from '../core/paths';
 import type { InkAnnotation, PageId, Rotation, TextAnnotation } from '../core/types';
@@ -10,42 +9,37 @@ import { ui } from './uiStore';
 /**
  * "Auto detect": turn handwriting drawn with the pen into real, editable text.
  *
- *  1. The pen strokes are grouped into blocks of writing (core/handwriting.ts).
- *  2. Each block is rendered black-on-white to a PNG — only the strokes, never the page.
- *  3. The blocks are read by the handwriting recogniser on the server (Claude vision,
- *     /api/handwriting) or, when that is not configured, by on-device OCR (Tesseract).
+ *  1. The pen strokes are grouped into blocks of writing, and each block into its lines
+ *     (core/handwriting.ts).
+ *  2. Each line is rendered black-on-white, normalised the way handwriting models expect
+ *     (fixed x-height, even stroke width) — only the strokes, never the page.
+ *  3. The lines are read by a handwriting-recognition model:
+ *       - Claude vision on the server (/api/handwriting) when ANTHROPIC_API_KEY is set;
+ *       - otherwise TrOCR, a model trained on handwritten text, running IN THE BROWSER
+ *         (downloaded once, ~60 MB, then cached — no key, no upload).
  *  4. Each block's strokes are replaced by a text box of the same size, colour and
  *     position, in a single undo step.
  */
 
-const PAD = 24;
-const MAX_SIDE = 1400;
-
-export function renderBlock(block: InkBlock, pageW: number, pageH: number, rotation: Rotation): HTMLCanvasElement {
-  const { box } = block;
-  const s = Math.max(2, Math.min(8, MAX_SIDE / Math.max(box.w, box.h, 1)));
+/** A line of writing drawn for recognition: ~64px tall, strokes ~4px wide, padded. */
+export function renderLine(line: InkBlock, pageW: number, pageH: number, rotation: Rotation, lineHeight = 64): HTMLCanvasElement {
+  const { box } = line;
+  const s = lineHeight / Math.max(box.h, 1);
+  const pad = Math.round(lineHeight * 0.3);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(box.w * s + 2 * PAD);
-  canvas.height = Math.ceil(box.h * s + 2 * PAD);
+  canvas.width = Math.max(lineHeight, Math.ceil(box.w * s + 2 * pad));
+  canvas.height = Math.ceil(box.h * s + 2 * pad);
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.setTransform(s, 0, 0, s, PAD - box.x * s, PAD - box.y * s);
+  ctx.setTransform(s, 0, 0, s, pad - box.x * s, pad - box.y * s);
   const [a, b, c, d, e, f] = pageToDisplayMatrix(pageW, pageH, rotation);
   ctx.transform(a, b, c, d, e, f);
-  ctx.fillStyle = '#000000';
   ctx.strokeStyle = '#000000';
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  for (const ink of block.inks) {
-    const outline = inkOutline(ink);
-    if (outline) {
-      ctx.fill(new Path2D(outlineSvg(outline)));
-    } else {
-      ctx.lineWidth = Math.max(ink.width, 1);
-      ctx.stroke(new Path2D(segsToSvg(smoothStroke(ink.points))));
-    }
-  }
+  ctx.lineWidth = Math.max(2.5, lineHeight * 0.06) / s; // even pen, like a scanned page
+  for (const ink of line.inks) ctx.stroke(new Path2D(segsToSvg(smoothStroke(ink.points))));
   return canvas;
 }
 
@@ -69,22 +63,59 @@ async function recogniseOnServer(canvases: HTMLCanvasElement[]): Promise<string[
   return out;
 }
 
-async function recogniseOnDevice(canvases: HTMLCanvasElement[]): Promise<string[]> {
-  const { createWorker, PSM } = await import('tesseract.js');
-  const worker = await createWorker('eng');
-  try {
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
-    const out: string[] = [];
-    for (const c of canvases) {
-      const { data } = await worker.recognize(c);
-      // On-device OCR is built for print: accept only confident reads, never a guess.
-      out.push(data.confidence >= 70 ? data.text : '');
-    }
-    return out;
-  } finally {
-    await worker.terminate();
-  }
+/* ------------------------- on-device handwriting model ------------------------- */
+
+export const HANDWRITING_MODEL = 'Xenova/trocr-small-handwritten';
+type Reader = (image: string) => Promise<string>;
+let reader: Promise<Reader> | null = null;
+
+function loadReader(onProgress: (pct: number) => void): Promise<Reader> {
+  reader ??= (async () => {
+    const { pipeline, env } = await import('@huggingface/transformers');
+    env.allowLocalModels = false;
+    const files = new Map<string, { loaded: number; total: number }>();
+    const pipe = await pipeline('image-to-text', HANDWRITING_MODEL, {
+      dtype: 'q8',
+      progress_callback: (p: { status: string; file?: string; loaded?: number; total?: number }) => {
+        if (p.status !== 'progress' || !p.file || !p.total) return;
+        files.set(p.file, { loaded: p.loaded ?? 0, total: p.total });
+        let loaded = 0;
+        let total = 0;
+        for (const f of files.values()) {
+          loaded += f.loaded;
+          total += f.total;
+        }
+        onProgress(total ? Math.round((loaded / total) * 100) : 0);
+      },
+    });
+    return async (image: string) => {
+      const out = (await pipe(image, { max_new_tokens: 48 })) as { generated_text: string }[] | { generated_text: string }[][];
+      const first = Array.isArray(out[0]) ? (out[0] as { generated_text: string }[])[0] : (out[0] as { generated_text: string });
+      return first?.generated_text ?? '';
+    };
+  })();
+  reader.catch(() => (reader = null)); // a failed download can be retried
+  return reader;
 }
+
+async function recogniseOnDevice(canvases: HTMLCanvasElement[], ctl: WorkspaceController): Promise<string[]> {
+  let noticeId: string | null = null;
+  let shown = -1;
+  const read = await loadReader((pct) => {
+    const step = Math.floor(pct / 10) * 10;
+    if (step === shown) return;
+    shown = step;
+    if (noticeId) ctl.dismiss(noticeId);
+    noticeId = ctl.notify('info', `Downloading the handwriting model — ${step}%`, 'First use only (about 60 MB). It runs on your device; nothing is uploaded.');
+  }).finally(() => {
+    if (noticeId) ctl.dismiss(noticeId);
+  });
+  const out: string[] = [];
+  for (const c of canvases) out.push(await read(c.toDataURL('image/png')));
+  return out;
+}
+
+/* ----------------------------------- action ----------------------------------- */
 
 let busy = false;
 
@@ -114,16 +145,25 @@ export async function convertHandwriting(ctl: WorkspaceController): Promise<numb
   ui.set({ recognising: true });
   const { width, height } = pageSize(ctl.state, page);
   const rotation = effectiveRotation(ctl.state, page);
-  const progress = ctl.notify('info', 'Reading your handwriting…');
+  let progress = ctl.notify('info', 'Reading your handwriting…');
   try {
     const blocks = clusterInk(inks, width, height, rotation);
-    const canvases = blocks.map((b) => renderBlock(b, width, height, rotation));
+    const lines = blocks.map((b) => splitLines(b, width, height, rotation));
+    const canvases = lines.flat().map((l) => renderLine(l, width, height, rotation));
     const ai = await serverRecogniser();
-    const texts = ai ? await recogniseOnServer(canvases) : await recogniseOnDevice(canvases);
+    let texts: string[];
+    if (ai) {
+      texts = await recogniseOnServer(canvases);
+    } else {
+      ctl.dismiss(progress);
+      texts = await recogniseOnDevice(canvases, ctl);
+      progress = ctl.notify('info', 'Reading your handwriting…');
+    }
     const created: TextAnnotation[] = [];
     const removeIds: string[] = [];
-    blocks.forEach((b, i) => {
-      const text = cleanRecognised(texts[i] ?? '');
+    let k = 0;
+    blocks.forEach((b, bi) => {
+      const text = cleanRecognised(lines[bi].map(() => cleanRecognised(texts[k++] ?? '')).join('\n'));
       if (!text) return;
       created.push(textForBlock(text, b.box, dominantColor(b.inks), width, height, rotation));
       removeIds.push(...b.inks.map((a) => a.id));
@@ -134,23 +174,16 @@ export async function convertHandwriting(ctl: WorkspaceController): Promise<numb
     const current = new Set(getPage(ctl.state, page.id)?.annotations.map((a) => a.id) ?? []);
     const stillThere = removeIds.filter((id) => current.has(id));
     if (!created.length) {
-      if (ai) ctl.notify('info', 'No readable handwriting found.', 'Drawings, ticks and scribbles are left as they are.');
-      else
-        ctl.notify(
-          'error',
-          'Handwriting reading is not switched on yet.',
-          'Without it, only very neat print can be read on this device. To read real handwriting, add ANTHROPIC_API_KEY to the Vercel project (Settings → Environment Variables) and redeploy.',
-        );
+      ctl.notify('info', 'No readable handwriting found.', 'Drawings, ticks and scribbles are left as they are.');
       return 0;
     }
     ctl.replaceAnnotations(page.id, stillThere, created, `Converted handwriting to text on page ${pageNo}`);
     ui.setTool('select');
     ui.set({ selectedAnns: { pageId: page.id, ids: created.map((a) => a.id) } });
-    const skipped = blocks.length - created.length;
     ctl.notify(
       'success',
       created.length === 1 ? 'Handwriting converted to text.' : `${created.length} pieces of handwriting converted to text.`,
-      skipped ? `${skipped} drawing${skipped === 1 ? '' : 's'} left as ${skipped === 1 ? 'it is' : 'they are'}. Double-click a text box to correct it.` : 'Double-click a text box to correct it.',
+      'Double-click the text to correct it, or Undo to get the handwriting back.',
       { label: 'Undo', run: () => ctl.undo() },
     );
     return created.length;

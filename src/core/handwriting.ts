@@ -19,6 +19,9 @@ export interface InkBlock {
 
 /** Only real pen strokes are handwriting candidates; translucent marker bands are not. */
 export function isHandwritingCandidate(a: InkAnnotation): boolean {
+  // Circles, boxes and long straight lines made by smart shapes are drawings. A short
+  // straight line is kept: it may be a letter stroke (l, t, E) or a dash.
+  if (a.shape && a.shape !== 'line') return false;
   return a.opacity >= 0.5 && a.points.length >= 2;
 }
 
@@ -121,4 +124,49 @@ export function dominantColor(inks: InkAnnotation[]): string {
   const count = new Map<string, number>();
   for (const a of inks) count.set(a.color, (count.get(a.color) ?? 0) + a.points.length);
   return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '#000000';
+}
+
+/**
+ * Split a block of writing into its lines (top to bottom). Line-by-line is how
+ * handwriting models read. Small marks — i-dots, commas, crossbars — join the line they
+ * sit nearest to instead of forming lines of their own.
+ */
+export function splitLines(block: InkBlock, pageW: number, pageH: number, rotation: Rotation): InkBlock[] {
+  const m = pageToDisplayMatrix(pageW, pageH, rotation);
+  const items = block.inks.map((a) => ({ a, b: displayBounds(a, m) }));
+  const hm = median(items.map((i) => i.b.h)) || 1;
+  const main = items.filter((i) => i.b.h >= hm * 0.35).sort((p, q) => p.b.y - q.b.y);
+  const small = items.filter((i) => i.b.h < hm * 0.35);
+  const lines: { items: typeof items; y0: number; y1: number }[] = [];
+  for (const it of main) {
+    const last = lines[lines.length - 1];
+    const overlap = last ? Math.min(last.y1, it.b.y + it.b.h) - Math.max(last.y0, it.b.y) : -1;
+    if (last && overlap >= Math.min(it.b.h, last.y1 - last.y0) * 0.3) {
+      last.items.push(it);
+      last.y0 = Math.min(last.y0, it.b.y);
+      last.y1 = Math.max(last.y1, it.b.y + it.b.h);
+    } else {
+      lines.push({ items: [it], y0: it.b.y, y1: it.b.y + it.b.h });
+    }
+  }
+  if (!lines.length) return [block];
+  for (const it of small) {
+    const cy = it.b.y + it.b.h / 2;
+    let best = lines[0];
+    for (const l of lines) if (Math.abs(cy - (l.y0 + l.y1) / 2) < Math.abs(cy - (best.y0 + best.y1) / 2)) best = l;
+    best.items.push(it);
+  }
+  return lines.map((l) => {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const { b } of l.items) {
+      x0 = Math.min(x0, b.x);
+      y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.w);
+      y1 = Math.max(y1, b.y + b.h);
+    }
+    return { inks: l.items.map((i) => i.a), box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
+  });
 }

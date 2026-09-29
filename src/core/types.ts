@@ -113,6 +113,8 @@ export interface InkAnnotation extends AnnotationBase {
   pressures?: number[];
   /** True when the device gave no real pressure: width then follows drawing speed. */
   simulatePressure?: boolean;
+  /** Set when smart shapes turned the stroke into a perfect figure (line, circle…). */
+  shape?: string;
 }
 
 export interface TextAnnotation extends AnnotationBase {
