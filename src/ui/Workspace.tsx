@@ -124,9 +124,18 @@ function Header() {
         }}
       />
       <button type="button" className="brand" onClick={() => ui.openDialog({ kind: 'workspaces' })} title="Your workspaces" data-testid="workspaces-button">
-        <span className="brand-mark"><Icon name="sparkle" size={14} fill="currentColor" strokeWidth={0} /></span>
-        <span>PDF</span>
-        <Icon name="chevronDown" size={14} />
+        <svg className="brand-logo" width="26" height="30" viewBox="0 0 26 30" aria-hidden="true">
+          {/* a page with a folded corner, the fold cut out in red */}
+          <path d="M3 1h13.5L25 9.5V27a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="#ffffff" />
+          <path d="M16.5 1v6.5a2 2 0 0 0 2 2H25" fill="#fecaca" />
+          <rect x="5" y="15" width="12" height="2.4" rx="1" fill="#b91c1c" />
+          <rect x="5" y="20" width="16" height="2.4" rx="1" fill="#b91c1c" opacity="0.55" />
+        </svg>
+        <span className="brand-word">
+          <strong>PDF</strong>
+          <small>Workspace</small>
+        </span>
+        <Icon name="chevronDown" size={14} className="brand-caret" />
       </button>
       <div className="doc-title">
         <input
