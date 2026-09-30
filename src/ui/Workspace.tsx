@@ -66,6 +66,9 @@ export function Workspace() {
         </main>
         {historyOpen && <HistoryPanel />}
       </div>
+      <footer className="app-footer" data-testid="app-footer">
+        Made with <Icon name="heart" size={12} className="heart" aria-label="love" /> by Mohit
+      </footer>
       {dropping && !empty && (
         <div className="drop-overlay">
           <div>

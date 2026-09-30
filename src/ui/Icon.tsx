@@ -4,6 +4,7 @@ import type { SVGProps } from 'react';
 const PATHS: Record<string, string> = {
   plus: 'M12 5v14M5 12h14',
   home: 'M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5',
+  heart: 'M12 20.5s-7.5-4.4-9.3-9.2C1.4 7.9 3.5 4.5 7 4.5c2.1 0 3.6 1.2 5 3 1.4-1.8 2.9-3 5-3 3.5 0 5.6 3.4 4.3 6.8-1.8 4.8-9.3 9.2-9.3 9.2z',
   sparkle: 'M12 3c.8 4.6 4.4 8.2 9 9-4.6.8-8.2 4.4-9 9-.8-4.6-4.4-8.2-9-9 4.6-.8 8.2-4.4 9-9z',
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
   minus: 'M5 12h14',

@@ -3147,3 +3147,74 @@ textarea {
 .btn.tone.is-active svg {
   color: inherit;
 }
+
+/* ============================ red accent ============================ */
+/* Black was the accent; red now marks everything active or primary.   */
+:root,
+:root:not([data-theme]),
+.topbar,
+.doc-toolbar,
+.annot-toolbar,
+.sidebar,
+.zoombar {
+  --accent: #dc2626;
+  --accent-soft: #fee2e2;
+  --accent-text: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #dc2626;
+    --accent-soft: #fee2e2;
+    --accent-text: #ffffff;
+  }
+}
+.topbar,
+.doc-toolbar,
+.annot-toolbar,
+.sidebar,
+.zoombar {
+  --accent-soft: #3b1111;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #b91c1c;
+  opacity: 1;
+}
+.brand .brand-mark {
+  background: #dc2626;
+  color: #fff;
+}
+.gap-add,
+.sidebar .gap-add {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.thumb-actions button:hover {
+  background: #dc2626;
+  color: #fff;
+}
+.file-pos {
+  background: #dc2626;
+}
+
+/* footer */
+.app-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 26px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: #a1a1aa;
+  background: #111113;
+  border-top: 1px solid #27272a;
+}
+.app-footer .heart {
+  color: #dc2626;
+  fill: #dc2626;
+}
+.toasts {
+  bottom: 40px !important;
+}
