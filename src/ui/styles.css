@@ -3218,3 +3218,195 @@ textarea {
 .toasts {
   bottom: 40px !important;
 }
+
+/* ===================================================================== */
+/* ALL RED — no black anywhere: the chrome is red, text is deep red,     */
+/* the work area stays white/light so pages read as paper.              */
+/* ===================================================================== */
+:root,
+:root:not([data-theme]) {
+  --text: #450a0a;
+  --muted: #7f3b3b;
+  --faint: #c08a8a;
+  --border: #f1dcdc;
+  --border-strong: #e7c3c3;
+  --bg: #f7eeee;
+  --canvas-bg: #f3e9e9;
+  --panel-2: #fbf4f4;
+  --accent: #dc2626;
+  --accent-soft: #fee2e2;
+  --accent-text: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #450a0a;
+    --muted: #7f3b3b;
+    --faint: #c08a8a;
+    --border: #f1dcdc;
+    --border-strong: #e7c3c3;
+    --bg: #f7eeee;
+    --canvas-bg: #f3e9e9;
+    --panel-2: #fbf4f4;
+  }
+}
+.topbar,
+.doc-toolbar,
+.annot-toolbar,
+.sidebar,
+.zoombar {
+  --panel: #b91c1c;
+  --panel-2: #991b1b;
+  --text: #ffffff;
+  --muted: #fecaca;
+  --faint: #fca5a5;
+  --border: #dc2626;
+  --border-strong: #f87171;
+  --accent: #ffffff;
+  --accent-soft: #7f1d1d;
+  --accent-text: #b91c1c;
+  --glass: #b91c1c;
+  --tone-soft: #991b1b;
+  --tone-hover: #7f1d1d;
+  background: var(--panel);
+  color: var(--text);
+}
+.doc-toolbar,
+.annot-toolbar {
+  --panel: #a51a1a;
+  background: var(--panel);
+}
+.sidebar {
+  --panel: #991b1b;
+  --panel-2: #7f1d1d;
+  background: var(--panel);
+}
+.topbar .btn-primary {
+  background: #ffffff;
+  color: #b91c1c;
+  border-color: #ffffff;
+}
+.topbar .btn-primary:hover:not(:disabled) {
+  background: #fee2e2;
+}
+.brand .brand-mark {
+  background: #ffffff;
+  color: #b91c1c;
+}
+.zoombar input {
+  background: #991b1b;
+  color: #fff;
+  border-color: #dc2626;
+}
+.tool-options {
+  background: #991b1b;
+  border-color: #dc2626;
+}
+.tool-options input[type='range'] {
+  accent-color: #ffffff;
+}
+/* hover menus on thumbnails */
+.thumb-actions {
+  background: #b91c1c;
+  box-shadow: 0 6px 16px -6px rgba(127, 29, 29, 0.7);
+}
+.thumb-actions button {
+  color: #fff;
+}
+.thumb-actions button:hover,
+.thumb-actions button.tone-red:hover {
+  background: #fff;
+  color: #b91c1c;
+}
+.sidebar .thumb.is-selected .thumb-frame,
+.sidebar .thumb.is-active .thumb-frame {
+  box-shadow: 0 0 0 2px #ffffff;
+}
+.sidebar .gap-add {
+  background: #ffffff;
+  color: #b91c1c;
+  border-color: #ffffff;
+}
+.sidebar .thumb-caption,
+.sidebar .thumb-num {
+  color: #fecaca;
+}
+.sidebar .thumb.is-active .thumb-num,
+.sidebar .thumb.is-selected .thumb-num {
+  color: #ffffff;
+}
+/* notifications and footer */
+.toast {
+  background: #b91c1c;
+  color: #fff;
+  border-color: #dc2626;
+  border-left-color: #fecaca;
+}
+.toast-success {
+  border-left-color: #86efac;
+}
+.toast-error {
+  border-left-color: #fde047;
+}
+.toast .muted,
+.toast details {
+  color: #fecaca;
+}
+.app-footer {
+  background: #b91c1c;
+  border-top-color: #dc2626;
+  color: #fee2e2;
+}
+.app-footer .heart {
+  color: #ffffff;
+  fill: #ffffff;
+}
+/* modal backdrop tinted red instead of black */
+.modal-backdrop {
+  background: rgba(127, 29, 29, 0.45);
+}
+/* organize views */
+.file-card:hover {
+  border-color: #dc2626;
+}
+.file-pos {
+  background: #dc2626;
+  color: #fff;
+}
+.page-view.is-active {
+  box-shadow: 0 0 0 1px #dc2626, 0 8px 24px -16px rgba(127, 29, 29, 0.45);
+}
+.page-view {
+  box-shadow: 0 0 0 1px rgba(127, 29, 29, 0.12), 0 8px 24px -16px rgba(127, 29, 29, 0.45);
+}
+.busy {
+  background: rgba(127, 29, 29, 0.35);
+}
+.topbar .status,
+.topbar .doc-meta {
+  color: #fee2e2;
+}
+.topbar .status::before {
+  background: #ffffff !important;
+}
+.topbar .status-unexported {
+  color: #ffffff;
+  font-weight: 600;
+}
+.topbar .status-unexported::before {
+  background: #fde047 !important;
+}
+.topbar .btn.is-active,
+.doc-toolbar .btn.is-active,
+.annot-toolbar .btn.is-active,
+.zoombar .btn.is-active {
+  background: #ffffff !important;
+  color: #b91c1c !important;
+  border-color: #ffffff !important;
+}
+.topbar .btn.is-active svg,
+.doc-toolbar .btn.is-active svg,
+.annot-toolbar .btn.is-active svg,
+.zoombar .btn.is-active svg {
+  color: #b91c1c !important;
+  stroke: #b91c1c;
+}
