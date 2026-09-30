@@ -105,7 +105,20 @@ export function FileList() {
                 ui.set({ view: 'organize' });
               }}
             >
-              <span className="file-pos">{i + 1}</span>
+              <button
+                type="button"
+                className="file-remove"
+                title="Remove this PDF"
+                aria-label={`Remove ${src.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ctl.removeDocument(g.sourceId);
+                  ctl.notify('info', `Removed ${src.name}.`, undefined, { label: 'Undo', run: () => ctl.undo() });
+                }}
+                data-testid={`file-remove-${i + 1}`}
+              >
+                <Icon name="close" size={16} strokeWidth={2.6} />
+              </button>
               <FileThumb blobId={src.blobId} index={first.sourcePageIndex} rotation={effectiveRotation(state, first)} />
               <div className="file-meta">
                 <span className="file-name" title={src.name}>
@@ -122,19 +135,9 @@ export function FileList() {
                 <button type="button" className="tone tone-blue" title="Move later" aria-label={`Move ${src.name} later`} disabled={i === groups.length - 1} onClick={() => move(g.sourceId, i + 1)} data-testid={`file-down-${i + 1}`}>
                   <Icon name="chevronRight" size={18} />
                 </button>
-                <button
-                  type="button"
-                  className="tone tone-red"
-                  title="Remove this file"
-                  aria-label={`Remove ${src.name}`}
-                  onClick={() => {
-                    ctl.removeDocument(g.sourceId);
-                    ctl.notify('info', `Removed ${src.name}.`, undefined, { label: 'Undo', run: () => ctl.undo() });
-                  }}
-                  data-testid={`file-remove-${i + 1}`}
-                >
-                  <Icon name="trash" size={18} />
-                </button>
+                <span className="file-pos" title={`Position ${i + 1} of ${groups.length}`}>
+                  {i + 1}
+                </span>
               </div>
             </li>
           );
