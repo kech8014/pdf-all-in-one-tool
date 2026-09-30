@@ -109,16 +109,6 @@ test('the full chained workflow, entirely through the UI', async ({ page }) => {
 
   await page.getByTestId('view-edit').click();
 
-  // 6. compress, then keep going in the same document
-  const idsBefore = await page.evaluate(() => window.__pdfws!.ctl.state.pages.map((p) => p.id));
-  await page.getByTestId('compress-button').click();
-  await page.getByTestId('level-balanced').check();
-  await page.getByTestId('compress-run').click();
-  await expect(page.getByTestId('compress-result')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('compress-result')).toContainText('smaller');
-  await page.getByTestId('compress-done').click();
-  expect(await page.evaluate(() => window.__pdfws!.ctl.state.pages.map((p) => p.id))).toEqual(idsBefore);
-
   // 7. open page 12 and zoom in
   await openPage(page, 12);
   const p12 = await pageIdAt(page, 12);

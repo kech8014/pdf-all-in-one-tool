@@ -1,4 +1,4 @@
-# Folio — PDF Workspace
+# PDF — all-in-one PDF workspace
 
 A browser-based PDF workspace. Import PDFs and images, then merge, reorder, insert, delete,
 rotate, compress, annotate and sign — **all on one live document** — and download the
@@ -22,7 +22,7 @@ undo history across everything.
 | Replace a page | Right-click ▸ *Replace page…* |
 | Download some pages | Select them ▸ **More ▸ Download pages as a new PDF** (the workspace is unchanged). |
 | Move pages to another workspace | **More ▸ Copy / move to another workspace…** |
-| Compress | **Compress** ▸ Lossless / Balanced / Strong. You keep editing the compressed document; **Undo** reverts it. |
+| Compress | Automatic: **Download PDF** shows "Auto-compressing…" and saves the smaller file (photos at 150 DPI; text and drawings stay vector). The dialog's *File size* option offers lossless, smallest, or none. Your workspace keeps the originals. |
 | Annotate | Pick a tool: Text, Pen, Marker, Eraser, Highlight, Underline, Strikethrough, Rectangle, Ellipse, Line, Arrow, Whiteout, Sticky note, Image, **Sign**. Options (colour — red is a preset — thickness, opacity, font, size, bold, italic, alignment) appear under the toolbar. |
 | Clean drawing | Pen and marker strokes are smoothed as you draw. **Smart shapes** (pen options): *Auto* straightens lines (snapping to 0°/45°/90° when close) and turns a circle, ellipse, rectangle or triangle drawn on its own into a perfect one; handwriting is never turned into shapes. Hold still for half a second at the end of any stroke to snap it on demand — this also gives perfect arcs and angles. *Hold* snaps only on hold; *Off* never snaps. |
 | Handwriting → text | Write with the Pen, then **Auto detect**: the handwriting on the page (or just the strokes you selected) becomes typed, editable text in the same place, size and colour. Drawings and ticks are left as they are. One **Undo** brings the handwriting back. |

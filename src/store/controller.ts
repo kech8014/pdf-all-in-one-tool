@@ -566,7 +566,14 @@ export class WorkspaceController {
 
   /* -------------------------------- export --------------------------------- */
 
-  async exportPdf(opts: { pageIds?: PageId[]; title?: string } = {}): Promise<Uint8Array | null> {
+  /** Size before/after the automatic compression of the last download. */
+  lastExportCompression: { before: number; after: number } | null = null;
+
+  /**
+   * Build the PDF and, unless `compress` is null, compress it automatically before handing
+   * it back (only the downloaded file is compressed; the workspace keeps its originals).
+   */
+  async exportPdf(opts: { pageIds?: PageId[]; title?: string; compress?: CompressionLevel | null } = {}): Promise<Uint8Array | null> {
     const state = this.state;
     if (!state.pages.length) {
       this.notify('error', 'There are no pages to export.');
@@ -576,9 +583,21 @@ export class WorkspaceController {
       const blobs: Record<BlobId, Uint8Array> = {};
       const subset = opts.pageIds ? Ops.keepPages(state, opts.pageIds) : state;
       for (const id of Ops.referencedBlobIds(Ops.pruneSources(subset))) blobs[id] = await this.blobs.get(id);
-      const bytes = await this.runTask(opts.pageIds ? 'Extracting pages' : 'Exporting PDF', (progress) =>
+      let bytes = await this.runTask(opts.pageIds ? 'Extracting pages' : 'Exporting PDF', (progress) =>
         this.engine.exportPdf(state, blobs, { pageIds: opts.pageIds, title: opts.title }, (d, t) => progress(t ? d / t : null)),
       );
+      this.lastExportCompression = null;
+      const level = opts.compress === undefined ? 'balanced' : opts.compress;
+      if (level) {
+        try {
+          const r = await this.runTask('Auto-compressing', (progress) => this.engine.compress(bytes, level, (d, t) => progress(t ? d / t : null)));
+          this.lastExportCompression = { before: bytes.byteLength, after: Math.min(bytes.byteLength, r.bytes.byteLength) };
+          if (r.changed && r.bytes.byteLength < bytes.byteLength) bytes = r.bytes;
+        } catch {
+          // Compression is an optimisation: if it fails, the uncompressed file is still correct.
+          this.lastExportCompression = null;
+        }
+      }
       if (!opts.pageIds) {
         this.set({ exportedState: state });
         this.scheduleSave();

@@ -61,12 +61,9 @@ test('replace a page, and drop a file into an exact gap', async ({ page }) => {
   await expect.poll(() => labels(page)).toEqual(['A-1', 'A-2', 'E-1', 'E-2', 'D-2', 'A-4', 'A-5', 'A-6', 'A-7', 'A-8']);
 });
 
-test('images: WebP and multi-page TIFF become pages, also after compression', async ({ page }) => {
+test('images: WebP and multi-page TIFF become pages; the download is compressed automatically', async ({ page }) => {
   await start(page, ['C.pdf']);
-  await page.getByTestId('compress-button').click();
-  await page.getByTestId('compress-run').click();
-  await expect(page.getByTestId('compress-result')).toBeVisible({ timeout: 60_000 });
-  await page.getByTestId('compress-done').click();
+  await expect(page.getByTestId('compress-button')).toHaveCount(0); // no separate compress step any more
 
   const webp = await page.evaluate(async () => {
     const c = document.createElement('canvas');
@@ -99,8 +96,13 @@ test('images: WebP and multi-page TIFF become pages, also after compression', as
   // Page shape follows each image: 320x200 px, 300x400 px, 400x300 px at 96 DPI.
   expect(sizes.slice(1, 4)).toEqual(['240x150', '225x300', '300x225']);
   await page.getByTestId('export-button').click();
+  await expect(page.getByTestId('export-quality')).toHaveValue('balanced');
   const bytes = await download(page, () => page.getByTestId('export-run').click());
   expect(await pageGeometry(bytes)).toHaveLength(5);
+  const c = await page.evaluate(() => window.__pdfws!.ctl.lastExportCompression);
+  expect(c).not.toBeNull();
+  expect(c!.after).toBeLessThan(c!.before); // the photo page made it smaller
+  expect(bytes.byteLength).toBe(c!.after);
 });
 
 test('clear errors: damaged PDF, unsupported file, password-protected PDF', async ({ page }) => {

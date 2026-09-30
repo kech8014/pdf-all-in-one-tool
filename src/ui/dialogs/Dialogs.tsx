@@ -121,16 +121,19 @@ function ExportDialog({ pageIds }: { pageIds?: PageId[] }) {
   const initialTitle = state.meta.title || state.name;
   const [title, setTitle] = useState(initialTitle);
   const [onlySelected, setOnlySelected] = useState(!!pageIds?.length);
+  const [quality, setQuality] = useState<CompressionLevel | 'none'>('balanced');
   const ids = onlySelected ? (pageIds?.length ? pageIds : selection) : undefined;
   const n = ids ? ids.length : state.pages.length;
   const anns = totalAnnotations(state);
   const run = async () => {
     // Only a title the user actually typed becomes part of the document (and its history).
     if (title.trim() && title !== initialTitle) ctl.apply({ ...ctl.state, meta: { ...ctl.state.meta, title: title.trim() } }, 'Set document title', { coalesce: 'meta' });
-    const bytes = await ctl.exportPdf({ pageIds: ids, title });
+    const bytes = await ctl.exportPdf({ pageIds: ids, title, compress: quality === 'none' ? null : quality });
     if (!bytes) return;
     downloadBytes(bytes, `${safeFileName(name)}.pdf`);
-    ctl.notify('success', `Downloaded "${safeFileName(name)}.pdf" (${n} page${n === 1 ? '' : 's'}, ${formatBytes(bytes.byteLength)}). The workspace stays open — keep editing any time.`);
+    const c = ctl.lastExportCompression;
+    const saved = c && c.after < c.before ? ` — compressed from ${formatBytes(c.before)}` : '';
+    ctl.notify('success', `Downloaded "${safeFileName(name)}.pdf" (${n} page${n === 1 ? '' : 's'}, ${formatBytes(bytes.byteLength)}${saved}).`, 'The workspace stays open — keep editing any time.');
     ui.closeDialog();
   };
   return (
@@ -164,6 +167,15 @@ function ExportDialog({ pageIds }: { pageIds?: PageId[] }) {
         <label>
           Document title <span className="muted">(shown by PDF readers)</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <label>
+          File size
+          <select value={quality} onChange={(e) => setQuality(e.target.value as CompressionLevel | 'none')} data-testid="export-quality">
+            <option value="balanced">Auto-compress (recommended) — photos at 150 DPI</option>
+            <option value="lossless">Lossless compression — no visible change</option>
+            <option value="strong">Smallest file — photos at 96 DPI</option>
+            <option value="none">No compression</option>
+          </select>
         </label>
         {selection.length > 0 && selection.length < state.pages.length && (
           <label className="check">

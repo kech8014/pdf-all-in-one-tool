@@ -122,7 +122,7 @@ function Header() {
       />
       <button type="button" className="brand" onClick={() => ui.openDialog({ kind: 'workspaces' })} title="Your workspaces" data-testid="workspaces-button">
         <span className="brand-mark"><Icon name="sparkle" size={14} fill="currentColor" strokeWidth={0} /></span>
-        <span>Folio</span>
+        <span>PDF</span>
         <Icon name="chevronDown" size={14} />
       </button>
       <div className="doc-title">
@@ -213,8 +213,7 @@ function DocToolbar() {
           { label: 'Clear selection', disabled: !selection.length, onClick: () => ctl.clearSelection() },
         ]}
       />
-      <span className="tb-sep" />
-      <IconButton icon="compress" label="Compress" showLabel onClick={() => ui.openDialog({ kind: 'compress' })} testId="compress-button" />
+
       <span className="tb-flex" />
       {selection.length > 1 && (
         <span className="selection-chip">
