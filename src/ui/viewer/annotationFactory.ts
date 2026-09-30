@@ -3,7 +3,7 @@ import { newId } from '../../core/ids';
 import { simplifyPoints, simplifyStroke } from '../../core/paths';
 import { recogniseShape, smoothFreehand, speedPressures, type RecognisedShape } from '../../core/shapes';
 import type { Annotation, InkAnnotation, NoteAnnotation, Rect, Rotation, TextAnnotation } from '../../core/types';
-import { layoutText } from '../../engine/textLayout';
+import { TEXT_PADDING, layoutText, measure } from '../../engine/textLayout';
 import type { Tool, ToolSettings } from '../uiStore';
 
 /** Tools that create an annotation by dragging a rectangle. */
@@ -158,6 +158,19 @@ export function newText(s: ToolSettings, x: number, y: number, width: number, ro
     opacity: 1,
   };
   return fitText(a);
+}
+
+/**
+ * A stamp: the label (e.g. "C1") as a text box whose CENTRE sits on the click point,
+ * sized to fit the label exactly. `x`/`y` are page coordinates; `rotation` is the upright
+ * rotation so the stamp reads straight on a rotated page.
+ */
+export function newStamp(s: ToolSettings, label: string, x: number, y: number, rotation: Rotation): TextAnnotation {
+  const style = { fontFamily: 'helvetica' as const, fontSize: s.stampSize, bold: s.stampBold, italic: false, align: 'center' as const };
+  const w = Math.ceil(measure(label, style.fontFamily, style.bold, false, style.fontSize)) + 2 * TEXT_PADDING + 4;
+  const h = layoutText({ ...style, text: label, boxWidth: w }).height;
+  const rect = rotation % 180 === 0 ? { x: x - w / 2, y: y - h / 2, w, h } : { x: x - h / 2, y: y - w / 2, w: h, h: w };
+  return { id: newId('an'), type: 'text', rect, rotation, text: label, ...style, color: s.stampColor, background: null, opacity: 1 };
 }
 
 /** Text boxes grow and shrink vertically to fit their content (width is the user's). */

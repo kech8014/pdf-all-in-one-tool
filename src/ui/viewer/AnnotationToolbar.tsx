@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { HIGHLIGHT_COLORS, PRESET_COLORS } from '../../core/color';
 import { getPage } from '../../core/operations';
 import type { Annotation, FontFamily, TextAnnotation } from '../../core/types';
 import { FONT_LABEL } from '../../engine/textLayout';
+import { syncStamps } from '../stampCounter';
 import { ColorPicker, IconButton, MOD, Slider, useApp, useView } from '../components';
 import { Icon, toneClass, type IconName } from '../Icon';
 import { convertHandwriting } from '../handwriting';
@@ -41,6 +42,7 @@ export const TOOLS: ToolDef[][] = [
   ],
   [
     { tool: 'whiteout', icon: 'whiteout', label: 'Whiteout', key: 'W', hint: 'Cover content with an opaque box' },
+    { tool: 'stamp', icon: 'stamp', label: 'Stamp', key: 'S', hint: 'Click to stamp C1, click again for C2, C3…' },
     { tool: 'note', icon: 'note', label: 'Sticky note', key: 'N', hint: 'Click to add a comment' },
     { tool: 'image', icon: 'image', label: 'Image', key: 'I', hint: 'Place a picture or stamp on the page' },
   ],
@@ -53,6 +55,9 @@ export function AnnotationToolbar() {
   const tool = useUi((s) => s.tool);
   const recognising = useUi((s) => s.recognising);
   const pending = useUi((s) => s.pendingImage);
+  const { state } = useView();
+  // Undo / redo of a stamp moves the stamp counter back / forward with it.
+  useEffect(() => syncStamps(state), [state]);
   return (
     <div className="annot-toolbar" role="toolbar" aria-label="Editing tools">
       <div className="tool-groups">
@@ -274,6 +279,9 @@ function ToolOptions() {
         </>
       );
       break;
+    case 'stamp':
+      body = <StampOptions s={s} onChange={upd} />;
+      break;
     case 'note':
       body = <ColorPicker label="Note colour" value={s.noteColor} presets={HIGHLIGHT_COLORS} onChange={(c) => c && upd({ noteColor: c })} />;
       break;
@@ -442,4 +450,53 @@ function StyleControls({ a, onChange }: { a: Annotation; onChange: (p: StylePatc
     case 'text':
       return <TextOptions a={a} onChange={onChange} />;
   }
+}
+
+function StampOptions({ s, onChange }: { s: ToolSettings; onChange: (p: Partial<ToolSettings>) => void }) {
+  return (
+    <>
+      <span className="stamp-preview" style={{ color: s.stampColor }} data-testid="stamp-preview" title="Next stamp">
+        {s.stampPrefix}
+        {s.stampNext}
+      </span>
+      <label className="opt-size" title="Text before the number">
+        <span>Text</span>
+        <input type="text" className="stamp-prefix" value={s.stampPrefix} maxLength={12} aria-label="Stamp text" data-testid="stamp-prefix" onChange={(e) => onChange({ stampPrefix: e.target.value })} />
+      </label>
+      <label className="opt-size" title="Number of the next stamp">
+        <span>Next</span>
+        <input
+          type="number"
+          min={0}
+          value={s.stampNext}
+          aria-label="Next stamp number"
+          data-testid="stamp-next"
+          onChange={(e) => {
+            const v = Math.floor(Number(e.target.value));
+            if (Number.isFinite(v) && v >= 0) onChange({ stampNext: v });
+          }}
+        />
+      </label>
+      <button type="button" className="btn btn-labelled" onClick={() => onChange({ stampNext: 1 })} data-testid="stamp-reset">
+        Restart at 1
+      </button>
+      <ColorPicker label="Stamp colour" value={s.stampColor} presets={PRESET_COLORS} onChange={(c) => c && onChange({ stampColor: c })} testId="stamp-color" />
+      <label className="opt-size" title="Font size">
+        <input
+          type="number"
+          min={6}
+          max={200}
+          value={s.stampSize}
+          aria-label="Stamp size"
+          data-testid="stamp-size"
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (v >= 6 && v <= 200) onChange({ stampSize: v });
+          }}
+        />
+        <span>pt</span>
+      </label>
+      <IconButton icon="bold" label="Bold" active={s.stampBold} onClick={() => onChange({ stampBold: !s.stampBold })} />
+    </>
+  );
 }

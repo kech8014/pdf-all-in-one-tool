@@ -3310,3 +3310,7 @@ textarea {
   padding-left: 14px;
   border-left: 1px solid rgba(255, 255, 255, 0.22);
 }
+
+/* Stamp tool options */
+.stamp-preview{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:30px;padding:0 8px;border:1.5px dashed currentColor;border-radius:4px;font-weight:700;font-size:15px;background:#fff}
+.opt-size input.stamp-prefix{width:56px}

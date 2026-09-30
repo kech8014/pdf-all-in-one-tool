@@ -23,7 +23,8 @@ export type Tool =
   | 'arrow'
   | 'whiteout'
   | 'note'
-  | 'image';
+  | 'image'
+  | 'stamp';
 
 export interface ToolSettings {
   penColor: string;
@@ -53,6 +54,12 @@ export interface ToolSettings {
   whiteoutColor: string;
   noteColor: string;
   eraserSize: number;
+  /** Stamp tool: each click stamps prefix + number, then the number goes up by one. */
+  stampPrefix: string;
+  stampNext: number;
+  stampColor: string;
+  stampSize: number;
+  stampBold: boolean;
 }
 
 export const DEFAULT_SETTINGS: ToolSettings = {
@@ -82,6 +89,11 @@ export const DEFAULT_SETTINGS: ToolSettings = {
   whiteoutColor: '#ffffff',
   noteColor: '#ffd400',
   eraserSize: 10,
+  stampPrefix: 'C',
+  stampNext: 1,
+  stampColor: '#dc2626',
+  stampSize: 50,
+  stampBold: true,
 };
 
 export type ZoomMode = 'fit-width' | 'fit-page' | 'custom';

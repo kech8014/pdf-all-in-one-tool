@@ -247,3 +247,42 @@ test('smart shapes: a shaky circle becomes a perfect one; holding still snaps a 
   expect(arc.pressures).toBeUndefined(); // snapped shapes are clean uniform strokes
   expect(arc.points.length).toBeGreaterThan(20);
 });
+
+test('stamp tool: C1, C2, C3 in red at 50 pt; undo gives the number back; cursor shows the next stamp', async ({ page }) => {
+  await page.getByTestId('tool-stamp').click();
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C1');
+  const cursor = () => page.locator('[data-page-number="1"] [style*="cursor"]').first().evaluate((el) => (el as HTMLElement).style.cursor);
+  expect(decodeURIComponent(await cursor())).toContain('>C1<');
+  await clickAt(page, 1, [0.3, 0.3]);
+  await clickAt(page, 1, [0.5, 0.5]);
+  await clickAt(page, 1, [0.7, 0.7]);
+  const stamps = (await anns(page, 1)) as { type: string; text: string; color: string; fontSize: number }[];
+  expect(stamps.map((a) => a.text)).toEqual(['C1', 'C2', 'C3']);
+  for (const a of stamps) {
+    expect(a.type).toBe('text');
+    expect(a.color).toBe('#dc2626');
+    expect(a.fontSize).toBe(50);
+  }
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C4');
+  expect(decodeURIComponent(await cursor())).toContain('>C4<');
+
+  // Ctrl+Z removes C3 and C3 becomes the next stamp again; redo moves it back to C4.
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C3');
+  expect(decodeURIComponent(await cursor())).toContain('>C3<');
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C2');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C3');
+  await clickAt(page, 1, [0.7, 0.7]);
+  expect(((await anns(page, 1)) as { text: string }[]).map((a) => a.text)).toEqual(['C1', 'C2', 'C3']);
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C4');
+
+  await page.getByTestId('stamp-reset').click();
+  await expect(page.getByTestId('stamp-preview')).toHaveText('C1');
+  await dismissToasts(page);
+  await page.getByTestId('export-button').click();
+  const bytes = await download(page, () => page.getByTestId('export-run').click());
+  const text = (await pageTexts(bytes))[0];
+  for (const l of ['C1', 'C2', 'C3']) expect(text).toContain(l);
+});

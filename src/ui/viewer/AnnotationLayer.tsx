@@ -19,9 +19,10 @@ import type { RecognisedShape } from '../../core/shapes';
 import { recogniseShape } from '../../core/shapes';
 import type { Annotation, AnnotationId, ImageAnnotation, LineAnnotation, Page, Rect, Rotation } from '../../core/types';
 import { useApp } from '../components';
+import { recordStamp, stampCursor } from '../stampCounter';
 import { ui, useUi } from '../uiStore';
 import { AnnotationShape } from './AnnotationShape';
-import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newText, shapeInk, strokeFrom, strokeIsIsolated } from './annotationFactory';
+import { BOX_TOOLS, INK_TOOLS, LINE_TOOLS, TYPE_LABEL, boxFrom, defaultBox, fitText, inkFrom, lineFrom, newNote, newStamp, newText, shapeInk, strokeFrom, strokeIsIsolated } from './annotationFactory';
 
 /**
  * The interactive annotation layer of one page: an SVG in DISPLAY space (points after
@@ -192,6 +193,16 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
         return;
       }
       gesture.current = { kind: 'place', what: 'text', x0: x, y0: y, x1: x, y1: y };
+    } else if (tool === 'stamp') {
+      // One click, one stamp: "C1", then "C2", "C3"… the counter lives in the tool settings.
+      const n = settings.stampNext;
+      const label = `${settings.stampPrefix}${n}`;
+      const stamp = newStamp(settings, label, x, y, uprightRotation(rotation));
+      ctl.addAnnotation(page.id, stamp, `Stamped ${label}`);
+      recordStamp(stamp.id, n);
+      ui.updateSettings({ stampNext: n + 1 });
+      gesture.current = null;
+      return;
     } else if (tool === 'note') {
       const hit = topHit(x, y);
       if (hit && hit.type === 'note') startEditing(hit);
@@ -458,7 +469,7 @@ export const AnnotationLayer = memo(function AnnotationLayer({ page, width, heig
   const selectedShown = shown.filter((a) => selectedSet.has(a.id));
   const hs = HANDLE_PX / scale;
   const cursor =
-    tool === 'select' ? 'default' : tool === 'hand' ? 'grab' : tool === 'text' ? 'text' : tool === 'eraser' ? 'none' : tool === 'image' && !pending ? 'pointer' : 'crosshair';
+    tool === 'stamp' ? stampCursor(`${settings.stampPrefix}${settings.stampNext}`, settings.stampColor) : tool === 'select' ? 'default' : tool === 'hand' ? 'grab' : tool === 'text' ? 'text' : tool === 'eraser' ? 'none' : tool === 'image' && !pending ? 'pointer' : 'crosshair';
 
   function handlesFor(a: Annotation) {
     if (a.type === 'line') {
