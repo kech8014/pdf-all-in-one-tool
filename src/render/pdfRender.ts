@@ -20,7 +20,7 @@ import { WorkspaceError } from '../core/errors';
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 const ASSETS = `${import.meta.env.BASE_URL}pdfjs/`;
-const MAX_DOCS = 10;
+const MAX_DOCS = 24;
 
 type BlobReader = (id: BlobId) => Promise<Uint8Array>;
 
@@ -78,6 +78,14 @@ export function openDocument(blobId: BlobId): Promise<PDFDocumentProxy> {
     doc.destroy();
   }
   return promise;
+}
+
+/** Forget an open document so the next request reopens it from its bytes. */
+export function closeDocument(blobId: BlobId) {
+  const hit = docs.get(blobId);
+  if (!hit) return;
+  docs.delete(blobId);
+  hit.destroy();
 }
 
 export async function getPage(blobId: BlobId, index: number): Promise<PDFPageProxy> {
@@ -155,7 +163,7 @@ interface ThumbJob {
 
 const THUMB_CACHE_MAX = 800;
 const thumbCache = new Map<string, ImageBitmap>();
-const inflight = new Map<string, Promise<ImageBitmap>>();
+const inflight = new Map<string, { promise: Promise<ImageBitmap>; job: ThumbJob; users: number }>();
 const queue: ThumbJob[] = [];
 let running = 0;
 const CONCURRENCY = 2;
@@ -168,30 +176,42 @@ export function cachedThumb(key: string): ImageBitmap | undefined {
   return thumbCache.get(key);
 }
 
-/** Request a thumbnail; `cancel` drops it from the queue if it has not started. */
+/** Request a thumbnail; `cancel` drops it from the queue if nobody else still wants it. */
 export function requestThumb(blobId: BlobId, index: number, rotation: Rotation, width: number): { promise: Promise<ImageBitmap>; cancel: () => void } {
   const key = thumbKey(blobId, index, rotation, width);
   const cached = thumbCache.get(key);
   if (cached) return { promise: Promise.resolve(cached), cancel: () => undefined };
-  const existing = inflight.get(key);
-  if (existing) return { promise: existing, cancel: () => undefined };
-  let job!: ThumbJob;
-  const promise = new Promise<ImageBitmap>((resolve, reject) => {
-    job = { key, blobId, index, rotation, width, resolve, reject, cancelled: false };
-  });
-  inflight.set(key, promise);
-  promise.catch(() => undefined).finally(() => inflight.delete(key));
-  // Newest requests first: what the user just scrolled to matters most.
-  queue.unshift(job);
-  pump();
+  let entry = inflight.get(key);
+  if (!entry) {
+    let job!: ThumbJob;
+    const promise = new Promise<ImageBitmap>((resolve, reject) => {
+      job = { key, blobId, index, rotation, width, resolve, reject, cancelled: false };
+    });
+    const created = { promise, job, users: 0 };
+    entry = created;
+    inflight.set(key, created);
+    promise.catch(() => undefined).finally(() => {
+      if (inflight.get(key) === created) inflight.delete(key);
+    });
+    // Newest requests first: what the user just scrolled to matters most.
+    queue.unshift(job);
+    pump();
+  }
+  const e = entry;
+  e.users++;
+  let done = false;
   return {
-    promise,
+    promise: e.promise,
     cancel: () => {
-      if (!job.cancelled && queue.includes(job)) {
-        job.cancelled = true;
-        queue.splice(queue.indexOf(job), 1);
-        inflight.delete(key);
-        job.reject(new Error('cancelled'));
+      if (done) return;
+      done = true;
+      e.users--;
+      // Only drop the render when no other thumbnail is waiting on the same image.
+      if (e.users <= 0 && !e.job.cancelled && queue.includes(e.job)) {
+        e.job.cancelled = true;
+        queue.splice(queue.indexOf(e.job), 1);
+        if (inflight.get(key) === e) inflight.delete(key);
+        e.job.reject(new Error('cancelled'));
       }
     },
   };
@@ -214,8 +234,16 @@ async function renderThumb(job: ThumbJob): Promise<ImageBitmap> {
   try {
     return await renderThumbInner(job);
   } catch (err) {
-    console.warn('[thumbnail] page', job.index + 1, err);
-    throw err;
+    // A document closed under the render (too many files open at once) or a transient
+    // worker hiccup: reopen the file and try once more before showing "Cannot preview".
+    console.warn('[thumbnail] page', job.index + 1, 'retrying', err);
+    closeDocument(job.blobId);
+    try {
+      return await renderThumbInner(job);
+    } catch (err2) {
+      console.warn('[thumbnail] page', job.index + 1, err2);
+      throw err2;
+    }
   }
 }
 
